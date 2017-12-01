@@ -1,15 +1,17 @@
 from Status import Status
 from Color import Color
 from Type import Type
+from Species import Species
 
 class Player:
 
-    def __init__(self, name):
+    def __init__(self, name,species):
         self.name = name
         self.status = Status.ALIVE
         self.points = 3
         self.color = Color.BLACK
-        self.type = None
+        self.type = Type.UNDEFINED
+        self.species = species
 
     def addPoints(self, amount):
         self.points += amount
@@ -19,11 +21,14 @@ class Player:
         if(self.points <= 0):
             self.status = Status.DEAD
 
-    def defineColor(self, color):
+    def setColor(self, color):
         self.color = color
 
-    def defineType(self, type):
+    def setType(self, type):
         self.type = type
+
+    def setSpecies(self, species):
+        self.species = species
 
     def getName(self):
         return self.name
@@ -39,3 +44,6 @@ class Player:
 
     def getType(self):
         return self.type
+
+    def getSpecies(self):
+        return self.species

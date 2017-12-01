@@ -1,4 +1,5 @@
 from enum import Enum
+import operator
 
 class Color(Enum):
     BLACK = 0
@@ -8,5 +9,3 @@ class Color(Enum):
     CYAN = 4
     YELLOW = 5
     MAGENTA = 6
-
-

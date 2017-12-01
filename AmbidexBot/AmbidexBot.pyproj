@@ -34,7 +34,13 @@
     <Compile Include="Player.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Species.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Status.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Token.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Type.py">
