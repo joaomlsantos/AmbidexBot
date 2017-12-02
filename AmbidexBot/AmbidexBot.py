@@ -148,6 +148,7 @@ async def _addmachine(ctx):
         if(await checkGameCreated(game)):
             if(game.checkPlayerLimit()):
                 NewMachine = game.addMachine()
+                print(ctx.message.author.name + " added " + NewMachine.getName() + " as a player.")
                 botMessage = "Bot " + NewMachine.getName() + " joined the current game."
                 await bot.say(botMessage)
                 if(not game.checkPlayerLimit()):
@@ -180,11 +181,17 @@ async def _pair(ctx):
                         pairPlayer = callerPlayer;
                     result = game.calculateCombinations(soloPlayer,pairPlayer)
                     game.ActivePolling = True
-                    game.CurrentVotes.clear()
+                    game.initPollingDict()
                     await bot.say(callerPlayer.getName() + " wants to pair up with " + calledPlayer.getName() + ".\nThe combinations are as follows:\n")
                     await bot.say(result)
                     await bot.say("Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree.")
-                    
+                    game.CurrentVotes["y"] += 1
+                    game.CurrentVotes[ctx.message.author.id] = "y"
+                    if(game.CurrentVotes["y"] > game.getAlivePlayers()/2):
+                        setPlayerDoors()
+                        game.LockAmbidex = True
+                        await bot.say("The current combination has passed. Please advance to the designated doors.")
+                        await bot.say("To reiterate:\n" + game.getTempCombinations())
                 else:
                     await bot.say("A " + callerPlayer.getType().name + " cannot pair with another " + calledPlayer.getType().name)
             else:
@@ -197,27 +204,30 @@ async def _pair(ctx):
 async def _vote(ctx):
     game = await getGame(ctx)
     if(game.checkGameStarted()):
-        if(game.ActivePolling):
-            if(game.checkPlayer(ctx.message.author)):
-                if(ctx.message.author.id not in game.CurrentVotes):
-                    if(ctx.message.content == "+vote y"):
-                        game.CurrentVotes["y"] += 1
-                        print(game.CurrentVotes["y"])
-                        game.CurrentVotes[ctx.message.author.id] = "y"
-                        if(game.CurrentVotes["y"] > len(game.GetAlivePlayers()/2)):
-                            setPlayerDoors()
-                            await bot.say("The current combination has passed. Please advance to the designated doors.")
-                            await bot.say("To reiterate:\n" + game.getTempCombinations())
-                    elif(ctx.message.content == "+vote n"):
-                        game.CurrentVotes["n"] += 1
-                        game.CurrentVotes[ctx.message.author.id] = "n"
-                        if(game.CurrentVotes["n"] > len(game.GetAlivePlayers()/2)):
-                            game.ActivePolling = False
-                            await bot.say("The current combination failed, as the majority of the players voted for it not to pass. Please submit a new combination proposal.")
-                else:
-                    await bot.say(ctx.message.author.name + ", you already submitted your vote.")
+        if(not game.LockAmbidex):
+            if(game.ActivePolling):
+                if(game.checkPlayer(ctx.message.author.name)):
+                    if(ctx.message.author.id not in game.CurrentVotes):
+                        if(ctx.message.content == "+vote y"):
+                            game.CurrentVotes["y"] += 1
+                            game.CurrentVotes[ctx.message.author.id] = "y"
+                            if(game.CurrentVotes["y"] > game.getAlivePlayers()/2):
+                                game.setPlayerDoors()
+                                game.LockAmbidex = True
+                                await bot.say("The current combination has passed. Please advance to the designated doors.")
+                                await bot.say("To reiterate:\n" + game.getTempCombinations())
+                        elif(ctx.message.content == "+vote n"):
+                            game.CurrentVotes["n"] += 1
+                            game.CurrentVotes[ctx.message.author.id] = "n"
+                            if(game.CurrentVotes["n"] >= game.getAlivePlayers()/2):
+                                game.ActivePolling = False
+                                await bot.say("The current combination failed, as the majority of the players voted for it not to pass. Please submit a new combination proposal.")
+                    else:
+                        await bot.say(ctx.message.author.name + ", you already submitted your vote.")
+            else:
+                await bot.say("A vote is not currently in progress.")
         else:
-            await bot.say("A vote is not currently in progress.")
+            await bot.say("The doors have already been locked. Please try again on the next round.")
 
 
 @bot.command(name='checkvotes',pass_context=True)

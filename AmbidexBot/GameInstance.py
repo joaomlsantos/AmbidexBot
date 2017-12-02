@@ -3,6 +3,7 @@ from Color import Color
 import random
 from Type import Type
 from Species import Species
+from Status import Status
 
 class GameInstance:
     
@@ -12,13 +13,14 @@ class GameInstance:
         self.InProgress = False
         self.GameStarted = False
         self.ActivePolling = False
+        self.LockAmbidex = False
         self.ColorSets = {}
         self.InitializeColorSets()
         self.GameIterations = 0
         self.CurrentColorSet = []
         self.CurrentDoorSet = []
         self.UserObjects = {}
-        self.ProposedColorCombo = {}
+        self.ProposedColorCombo = ""
         self.CurrentVotes = {}
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
@@ -99,11 +101,17 @@ class GameInstance:
     def clearGame(self):
         self.PlayerArray.clear()
         self.InProgress = False
+        self.GameStarted = False
+        self.ActivePolling = False
+        self.LockAmbidex = False
         self.GameIterations = 0
-        self.CurrentColorSet = []
-        self.CurrentDoorSet = []
-        self.UserObjects = {}
-        self.ProposedColorCombo = {}
+        self.CurrentColorSet.clear()
+        self.CurrentDoorSet.clear()
+        self.UserObjects.clear()
+        self.ProposedColorCombo = ""
+        self.CurrentVotes.clear()
+        self.CurrentVotes["y"] = 0
+        self.CurrentVotes["n"] = 0
         self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake"]
 
 
@@ -197,9 +205,20 @@ class GameInstance:
             message += blueLot[0].getName() + ", " + blueLot[1].getName() + " and " + blueLot[2].getName() + " will go through the Blue Door.\n"
         return message
 
-        
 
     def setPlayerDoors(self):
-        for player in PlayerArray:
+        for player in self.PlayerArray:
             bracelet = player.getColor().name + " " + player.getType().name
             player.setDoor(self.ColorSets[self.ProposedColorCombo][bracelet])
+
+    def initPollingDict(self):
+        self.CurrentVotes.clear()
+        self.CurrentVotes["y"] = 0
+        self.CurrentVotes["n"] = 0
+
+    def getAlivePlayers(self):      #it only counts HUMAN players right now
+        result = 0
+        for player in self.PlayerArray:
+            if(player.getStatus() == Status.ALIVE and player.getSpecies() == Species.HUMAN):
+                result += 1
+        return result
