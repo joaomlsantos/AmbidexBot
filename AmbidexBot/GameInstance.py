@@ -112,7 +112,7 @@ class GameInstance:
         self.CurrentVotes.clear()
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
-        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake"]
+        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Sigma"]
 
 
     def checkPlayerLimit(self):
