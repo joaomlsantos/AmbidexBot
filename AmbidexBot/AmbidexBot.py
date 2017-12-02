@@ -8,6 +8,7 @@ from GameInstance import GameInstance
 from Player import Player
 import Token
 from Species import Species
+from Type import Type
 
 
 logger = logging.getLogger('discord')
@@ -17,10 +18,10 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 
-messageList = ['owo']
-game = GameInstance()
-
 bot = Bot(command_prefix='+')
+
+messageList = ['owo']
+gameInstances = {}
 
 @bot.event
 async def on_ready():
@@ -31,6 +32,12 @@ async def on_ready():
     print('------')
     for member in bot.get_all_members():
         print(member.name, member.id)
+    print('------')
+    for server in bot.servers:
+        print(server.name, server.owner.name)
+    print('------')
+    for server in bot.servers:
+        gameInstances[server.id] = GameInstance(server.id)
 
 
 @bot.command(name='ask',pass_context=True)
@@ -48,7 +55,8 @@ async def _ask(ctx):
 
 @bot.command(name='create',pass_context=True)
 async def _create(ctx):
-    if(not await checkGameStarted()):
+    game = await getGame(ctx)
+    if(not await checkGameStarted(game)):
         GameCreateSuccess = game.createGame(ctx.message.author.name,ctx.message.author)
         if(GameCreateSuccess):
             botMessage = ctx.message.author.name + " created a new game."
@@ -61,7 +69,8 @@ async def _create(ctx):
 
 @bot.command(name='end',pass_context=True)
 async def _end(ctx):
-    if(await checkGameCreated()):
+    game = await getGame(ctx)
+    if(await checkGameCreated(game)):
         if(game.checkPlayer(ctx.message.author.name)):
             game.endGame(ctx.message.author.name)
             botMessage = ctx.message.author.name + " ended the current game."
@@ -74,8 +83,9 @@ async def _end(ctx):
 
 @bot.command(name='join',pass_context=True)
 async def _join(ctx):
-    if(not await checkGameStarted()):
-        if(await checkGameCreated()):
+    game = await getGame(ctx)
+    if(not await checkGameStarted(game)):
+        if(await checkGameCreated(game)):
             if(game.checkPlayerLimit()):
                 JoinGameSuccess = game.joinGame(ctx.message.author.name,ctx.message.author)
                 if(JoinGameSuccess):
@@ -92,9 +102,10 @@ async def _join(ctx):
 
 
 
-@bot.command(name='playerlist')
-async def _playerlist():
-    if(await checkGameCreated()):
+@bot.command(name='playerlist',pass_context=True)
+async def _playerlist(ctx):
+    game = await getGame(ctx)
+    if(await checkGameCreated(game)):
         botMessage = "Current players:\n"
         for player in game.PlayerArray:
             botMessage += player.name + "\n"
@@ -104,8 +115,9 @@ async def _playerlist():
 
 @bot.command(name='quit',pass_context=True)
 async def _quit(ctx):
-    if(not await checkGameStarted()):
-        if(await checkGameCreated()):
+    game = await getGame(ctx)
+    if(not await checkGameStarted(game)):
+        if(await checkGameCreated(game)):
             QuitGameSuccess = game.quitGame(ctx.message.author.name)
             if(QuitGameSuccess):
                 botMessage = ctx.message.author.name + " quit the current game."
@@ -116,22 +128,24 @@ async def _quit(ctx):
 
 
 
-@bot.command(name='start')
-async def _start():
-    if(not await checkGameStarted()):
+@bot.command(name='start',pass_context=True)
+async def _start(ctx):
+    game = await getGame(ctx)
+    if(not await checkGameStarted(game)):
         StartGameSuccess = game.startGame()
         if(StartGameSuccess):
-            await messagePlayers()
+            await messagePlayers(game)
             await bot.say("Game is starting! The participants are as follows: " + game.printPlayers())
         else:
             await bot.say("There are currently " + str(len(game.PlayerArray)) + " players. You need 9 players to be able to start a game.")
 
 
 
-@bot.command(name='addmachine')
-async def _addmachine():
-    if(not await checkGameStarted()):
-        if(await checkGameCreated()):
+@bot.command(name='addmachine',pass_context=True)
+async def _addmachine(ctx):
+    game = await getGame(ctx)
+    if(not await checkGameStarted(game)):
+        if(await checkGameCreated(game)):
             if(game.checkPlayerLimit()):
                 NewMachine = game.addMachine()
                 botMessage = "Bot " + NewMachine.getName() + " joined the current game."
@@ -145,24 +159,82 @@ async def _addmachine():
 
 @bot.command(name='pair',pass_context=True)
 async def _pair(ctx):
+    game = await getGame(ctx)
     if(game.checkGameStarted()):
-        pairPlayerObject = ctx.message.mentions[0]       #comes in random order, might be troublesome
-        if(game.checkPlayer(pairPlayerObject.name)):
-            callerPlayer = game.getPlayer(ctx.message.author.name)
-            pairPlayer = game.getPlayer(pairPlayerObject.name)
-            callerPlayerSpecies = callerPlayer.getSpecies()
-            if(callerPlayerSpecies != pairPlayer.getSpecies()):
-                result = await calculateCombinations(callerPlayer,pairPlayer)
+        if(not game.ActivePolling):
+            if(len(ctx.message.mentions)>0):
+                calledPlayerName = ctx.message.mentions[0].name
+            elif(len(ctx.message.content)>6):
+                calledPlayerName = ctx.message.content[6:]
             else:
-                await bot.say("A " + callerPlayerSpecies + "cannot pair with another" + callerPlayerSpecies)
+                calledPlayerName = ""
+            if(game.checkPlayer(calledPlayerName)):
+                callerPlayer = game.getPlayer(ctx.message.author.name)
+                calledPlayer = game.getPlayer(calledPlayerName)
+                if(callerPlayer.getType() != calledPlayer.getType()):
+                    if(callerPlayer.getType() == Type.SOLO):
+                        soloPlayer = callerPlayer;
+                        pairPlayer = calledPlayer;
+                    else:
+                        soloPlayer = calledPlayer;
+                        pairPlayer = callerPlayer;
+                    result = game.calculateCombinations(soloPlayer,pairPlayer)
+                    game.ActivePolling = True
+                    game.CurrentVotes.clear()
+                    await bot.say(callerPlayer.getName() + " wants to pair up with " + calledPlayer.getName() + ".\nThe combinations are as follows:\n")
+                    await bot.say(result)
+                    await bot.say("Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree.")
+                    
+                else:
+                    await bot.say("A " + callerPlayer.getType().name + " cannot pair with another " + calledPlayer.getType().name)
+            else:
+                await bot.say (calledPlayerName + " is not in this game.")
         else:
-            await bot.say (pairPlayerObject.name + "is not in this game.")
+            await bot.say ("A voting is currently in progress.")
 
-  
+
+@bot.command(name='vote',pass_context=True)
+async def _vote(ctx):
+    game = await getGame(ctx)
+    if(game.checkGameStarted()):
+        if(game.ActivePolling):
+            if(game.checkPlayer(ctx.message.author)):
+                if(ctx.message.author.id not in game.CurrentVotes):
+                    if(ctx.message.content == "+vote y"):
+                        game.CurrentVotes["y"] += 1
+                        print(game.CurrentVotes["y"])
+                        game.CurrentVotes[ctx.message.author.id] = "y"
+                        if(game.CurrentVotes["y"] > len(game.GetAlivePlayers()/2)):
+                            setPlayerDoors()
+                            await bot.say("The current combination has passed. Please advance to the designated doors.")
+                            await bot.say("To reiterate:\n" + game.getTempCombinations())
+                    elif(ctx.message.content == "+vote n"):
+                        game.CurrentVotes["n"] += 1
+                        game.CurrentVotes[ctx.message.author.id] = "n"
+                        if(game.CurrentVotes["n"] > len(game.GetAlivePlayers()/2)):
+                            game.ActivePolling = False
+                            await bot.say("The current combination failed, as the majority of the players voted for it not to pass. Please submit a new combination proposal.")
+                else:
+                    await bot.say(ctx.message.author.name + ", you already submitted your vote.")
+        else:
+            await bot.say("A vote is not currently in progress.")
+
+
+@bot.command(name='checkvotes',pass_context=True)
+async def _checkVotes(ctx):
+    game = await getGame(ctx)
+    if(game.checkGameStarted()):
+        if(game.ActivePolling):
+            message = "Current votes:\n"
+            message += "y: " + str(game.CurrentVotes["y"]) + "\n"
+            message += "n: " + str(game.CurrentVotes["n"])
+            await bot.say(message)
+        else:
+            await bot.say("A vote is not currently in progress.")
 
 
 @bot.event
-async def checkGameCreated():
+async def checkGameCreated(game):
     if(game.checkInProgress()):
         return True
     else:
@@ -170,23 +242,30 @@ async def checkGameCreated():
         return False
 
 @bot.event
-async def checkGameStarted():
+async def checkGameStarted(game):
     if(game.checkGameStarted()):
-        return False
-    else:
-        botMessage = "A game is already in progress, " + ctx.message.author.name + "!"
+        botMessage = "A game is already in progress!"
         await bot.say(botMessage)
         return True
+    else:
+        return False
 
 
 @bot.event
-async def messagePlayers():
+async def messagePlayers(game):
     for player in game.PlayerArray:
         if(player.getSpecies() == Species.HUMAN):
             message = "Welcome to the Ambidex Game! [INSERT EXPLANATION HERE]\n"
             message += "For this round, you'll be a " + player.getColor().name + " " + player.getType().name + ".\n"
             message += "You currently have " + str(player.getPoints()) + " points."
             await bot.send_message(game.UserObjects[player.getName()],message)
+    
+
+
+@bot.event
+async def getGame(ctx):
+    print(ctx.message.server.id)
+    return gameInstances[ctx.message.server.id]
 
 
 bot.run(Token.token)

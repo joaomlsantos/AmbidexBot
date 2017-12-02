@@ -12,6 +12,7 @@ class Player:
         self.color = Color.BLACK
         self.type = Type.UNDEFINED
         self.species = species
+        self.door = Color.BLACK
 
     def addPoints(self, amount):
         self.points += amount
@@ -30,6 +31,9 @@ class Player:
     def setSpecies(self, species):
         self.species = species
 
+    def setDoor(self, door):
+        self.door = door
+
     def getName(self):
         return self.name
 
@@ -47,3 +51,6 @@ class Player:
 
     def getSpecies(self):
         return self.species
+
+    def getDoor(self):
+        return self.door

@@ -9,3 +9,4 @@ class Color(Enum):
     CYAN = 4
     YELLOW = 5
     MAGENTA = 6
+
