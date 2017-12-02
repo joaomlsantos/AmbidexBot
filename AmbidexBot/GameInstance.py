@@ -104,7 +104,7 @@ class GameInstance:
         self.CurrentDoorSet = []
         self.UserObjects = {}
         self.ProposedColorCombo = {}
-        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake"]
+        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Dante from the Devil May Cry Series","Sigma"]
 
 
     def checkPlayerLimit(self):
