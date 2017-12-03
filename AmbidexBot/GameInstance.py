@@ -4,6 +4,7 @@ import random
 from Type import Type
 from Species import Species
 from Status import Status
+from Vote import Vote
 
 class GameInstance:
     
@@ -14,6 +15,7 @@ class GameInstance:
         self.GameStarted = False
         self.ActivePolling = False
         self.LockAmbidex = False
+        self.AmbidexInProgress = False
         self.ColorSets = {}
         self.InitializeColorSets()
         self.GameIterations = 0
@@ -24,7 +26,16 @@ class GameInstance:
         self.CurrentVotes = {}
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
+        self.AmbidexGameRound = {}
         self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake"]
+        self.cyanLot = []
+        self.yellowLot = []
+        self.magentaLot = []
+        self.redLot = []
+        self.greenLot = []
+        self.blueLot = []
+        self.ColorLotMapping = {Color.CYAN: self.cyanLot, Color.YELLOW: self.yellowLot, Color.MAGENTA: self.magentaLot, Color.RED: self.redLot, Color.GREEN: self.greenLot, Color.BLUE: self.blueLot}
+        
 
     def InitializeColorSets(self):
         self.ColorSets["Primary Colors"] = [Color.RED,Color.GREEN,Color.BLUE]
@@ -49,9 +60,8 @@ class GameInstance:
             print(creatorName, "failed to create a game instance.")
             return False
 
-    def endGame(self,ender):
+    def endGame(self):
         self.clearGame()
-        print(ender, "ended the game.")
 
     def joinGame(self,playerName,playerObject):
         if(not self.checkPlayer(playerName)):
@@ -98,18 +108,23 @@ class GameInstance:
             if(p.getName() == player):
                 return p
 
+    def getPlayerColorType(self,player):
+        return player.getColor().name + " " + player.getType().name()
+
     def clearGame(self):
         self.PlayerArray.clear()
         self.InProgress = False
         self.GameStarted = False
         self.ActivePolling = False
         self.LockAmbidex = False
+        self.AmbidexInProgress = False
         self.GameIterations = 0
         self.CurrentColorSet.clear()
         self.CurrentDoorSet.clear()
         self.UserObjects.clear()
         self.ProposedColorCombo = ""
         self.CurrentVotes.clear()
+        self.AmbidexGameRound.clear()
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
         self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Sigma"]
@@ -172,14 +187,21 @@ class GameInstance:
         self.ProposedColorCombo = colorCombo
         return self.getTempCombinations()
 
+    def getOpponent(self,player):
+        colortype = self.getPlayerColorType(player)     #aka "RED SOLO" or etc
+        playerdoor = player.getDoor()                   #aka Color.CYAN
+        for key in self.ColorSets[ProposedColorCombo].keys():
+            if(key != colortype and ColorSets[ProposedColorCombo][key] == playerdoor):
+                return key
+
     def getTempCombinations(self):
         message = ""
-        cyanLot = []
-        yellowLot = []
-        magentaLot = []
-        redLot = []
-        greenLot = []
-        blueLot = []
+        self.cyanLot.clear()
+        self.yellowLot.clear()
+        self.magentaLot.clear()
+        self.redLot.clear()
+        self.greenLot.clear()
+        self.blueLot.clear()
         for player in self.PlayerArray:
             bracelet = player.getColor().name + " " + player.getType().name
             playerDoor = self.ColorSets[self.ProposedColorCombo][bracelet]
@@ -206,6 +228,20 @@ class GameInstance:
         return message
 
 
+    def getAmbidexResult(self,playerColorType,opponentColorType):
+        playerVote = self.AmbidexGameRound[playerColorType]
+        opponentVote = self.AmbidexGameRound[opponentColorType]
+        if(playerVote == Vote.ALLY and opponentVote == Vote.ALLY):
+            return 2
+        elif(playerVote == Vote.ALLY and opponentVote == Vote.BETRAY):
+            return -2
+        elif(playerVote == Vote.BETRAY and opponentVote == Vote.ALLY):
+            return 3
+        elif(playerVote == Vote.BETRAY and opponentVote == Vote.BETRAY):
+            return 0
+        
+
+
     def setPlayerDoors(self):
         for player in self.PlayerArray:
             bracelet = player.getColor().name + " " + player.getType().name
@@ -222,3 +258,11 @@ class GameInstance:
             if(player.getStatus() == Status.ALIVE and player.getSpecies() == Species.HUMAN):
                 result += 1
         return result
+
+    def clearDoorLots(self):
+        self.cyanLot.clear()
+        self.yellowLot.clear()
+        self.magentaLot.clear()
+        self.redLot.clear()
+        self.greenLot.clear()
+        self.blueLot.clear()

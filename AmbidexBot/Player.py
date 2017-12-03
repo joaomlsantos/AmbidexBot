@@ -16,9 +16,6 @@ class Player:
 
     def addPoints(self, amount):
         self.points += amount
-
-    def subPoints(self, amount):
-        self.points -= amount
         if(self.points <= 0):
             self.status = Status.DEAD
 

@@ -9,6 +9,8 @@ from Player import Player
 import Token
 from Species import Species
 from Type import Type
+from Vote import Vote
+from Status import Status
 
 
 logger = logging.getLogger('discord')
@@ -72,7 +74,7 @@ async def _end(ctx):
     game = await getGame(ctx)
     if(await checkGameCreated(game)):
         if(game.checkPlayer(ctx.message.author.name)):
-            game.endGame(ctx.message.author.name)
+            game.endGame()
             botMessage = ctx.message.author.name + " ended the current game."
             await bot.say(botMessage)
         else:
@@ -134,8 +136,13 @@ async def _start(ctx):
     if(not await checkGameStarted(game)):
         StartGameSuccess = game.startGame()
         if(StartGameSuccess):
-            await messagePlayers(game)
+            colors = []
             await bot.say("Game is starting! The participants are as follows: " + game.printPlayers())
+            await messagePlayersStart(game)
+            for color in game.CurrentDoorSet:
+                colors.append(color.name)
+            await bot.say("Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
+            await bot.say("The bracelets have been distributed; type +pair [PLAYERNAME], +pair [PLAYERTAG], or +door [COLOR] to propose a combination of players/doors to proceed.")
         else:
             await bot.say("There are currently " + str(len(game.PlayerArray)) + " players. You need 9 players to be able to start a game.")
 
@@ -216,11 +223,13 @@ async def _vote(ctx):
                                 game.LockAmbidex = True
                                 await bot.say("The current combination has passed. Please advance to the designated doors.")
                                 await bot.say("To reiterate:\n" + game.getTempCombinations())
+                                await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
                         elif(ctx.message.content == "+vote n"):
                             game.CurrentVotes["n"] += 1
                             game.CurrentVotes[ctx.message.author.id] = "n"
                             if(game.CurrentVotes["n"] >= game.getAlivePlayers()/2):
                                 game.ActivePolling = False
+                                game.clearDoorLots()
                                 await bot.say("The current combination failed, as the majority of the players voted for it not to pass. Please submit a new combination proposal.")
                     else:
                         await bot.say(ctx.message.author.name + ", you already submitted your vote.")
@@ -243,6 +252,92 @@ async def _checkVotes(ctx):
             await bot.say("A vote is not currently in progress.")
 
 
+
+@bot.command(name='startabgame',pass_context=True)
+async def _startabgame(ctx):
+    game = await getGame(ctx)
+    if(game.checkGameStarted()):
+        if(game.LockAmbidex):
+            game.AmbidexInProgress = True
+            await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next minute and a half, or your vote will be defaulted to Ally.")
+            bot.loop.create_task(checkAmbidexGame(ctx))
+
+
+@bot.command(name='ally',pass_context=True)
+async def _ally(ctx):
+    game = await getGame(ctx)
+    if(game.AmbidexInProgress):
+        if(ctx.message.channel.type is discord.ChannelType.private):
+            player = getPlayer(ctx.message.author.name)
+            if(player.getStatus() == Status.ALIVE):
+                colorType = player.getColor().name + " " + player.getType().name()
+                if(colorType not in game.AmbidexGameRound):
+                    game.AmbidexGameRound[colorType] = Vote.ALLY
+                    await bot.send_message(ctx.message.author,"Your vote has been confirmed. Please wait for the results.")
+                else:
+                    await bot.send_message(ctx.message.author,"Your team's vote has already been submitted.")
+
+
+@bot.command(name='betray',pass_context=True)
+async def _betray(ctx):
+    game = await getGame(ctx)
+    if(game.AmbidexInProgress):
+        if(ctx.message.channel.type is discord.ChannelType.private):
+            if(game.checkPlayer(ctx.message.author.name)):
+                player = getPlayer(ctx.message.author.name)
+                if(player.getStatus() == Status.ALIVE):
+                    colorType = player.getColor().name + " " + player.getType().name()
+                    if(colorType not in game.AmbidexGameRound):
+                        game.AmbidexGameRound[colorType] = Vote.BETRAY
+                        await bot.send_message(ctx.message.author,"Your vote has been confirmed. Please wait for the results.")
+                    else:
+                        await bot.send_message(ctx.message.author,"Your team's vote has already been submitted.")
+
+
+@bot.command(name='checkabvote',pass_context=True)
+async def _checkabvote(ctx):
+    game = await getGame(ctx)
+    if(game.AmbidexInProgress):
+        await bot.say("The following players haven't voted yet:")
+        for player in game.PlayerArray:
+            colortype = game.getPlayerColorType(player)
+            if(colorType not in game.AmbidexGameRound):
+                await bot.say(player.getName())
+    
+
+@bot.command(name='opendoor9',pass_context=True)
+async def _opendoor9(ctx):
+    game = await getGame(ctx)
+    if(not game.AmbidexInProgress):
+        player = getPlayer(ctx.message.author.name)
+        if(player.getStatus == Status.ALIVE and player.getPoints() >= 9):
+            await bot.say(player.getName() + " opened Door 9.")
+            winners = []
+            losers = []
+            dead = []
+            for p in game.PlayerArray:
+                if (p.getStatus() == Status.DEAD):
+                    dead.append(p)
+                elif (p.getStatus() == Status.ALIVE):
+                    if(p.getPoints < 9):
+                        losers.append(p)
+                    else:
+                        winners.append(p)
+            await asyncio.sleep(9)
+            await bot.say("After 9 seconds passed, their fate was sealed.")
+            if(len(winners) == 1):
+                await bot.say(winners[0].getName() + "was the sole escapee, leaving everyone else trapped in the facility for the rest of their lives.")
+            elif(len(winners) < 9):
+                winningmessage = winners[0].getName()
+                if(len(winners)>2):
+                    for i in range(1,len(winners)-2):
+                        winningmessage += ", " + winners[i].getName()
+                winningmessage += " and " + winners[-1].getName() + "were able to successfully escape."
+                await bot.say(winningmessage)
+            elif(len(winners) == 9):
+                await bot.say("The spirit of collaboration had trumped over distrust, and everyone managed to get out of the facility safely. The trauma might remain, but so does the happiness of mutual survival.")
+            game.endGame()
+
 @bot.event
 async def checkGameCreated(game):
     if(game.checkInProgress()):
@@ -262,14 +357,74 @@ async def checkGameStarted(game):
 
 
 @bot.event
-async def messagePlayers(game):
+async def messagePlayersStart(game):
     for player in game.PlayerArray:
         if(player.getSpecies() == Species.HUMAN):
-            message = "Welcome to the Ambidex Game! [INSERT EXPLANATION HERE]\n"
-            message += "For this round, you'll be a " + player.getColor().name + " " + player.getType().name + ".\n"
-            message += "You currently have " + str(player.getPoints()) + " points."
+            message = "Welcome to the Ambidex Game!\n"
+            message += "In the Ambidex Game, you will face off whoever you decide to go with into the Chromatic Doors.\n"
+            message += "You have two options: A: Ally, or B: Betray.\n"
+            message += "If you and your rival(s) both pick ally, both of you gain 2 Bracelet Points (BP).\n"
+            message += "If you pick betray while your rival(s) pick ally, you gain 3 BP and they will lose 2 BP. The reverse is true too, if you pick ally and if they pick betray, you will lose 2 BP and they will gain 3 BP.\n"
+            message += "If you and your rival(s) both pick betray, no change in BP occurs whatsoever.\n"
+            message += "You need to reach 9 BP in order to open the number 9 door to escape.\n"
             await bot.send_message(game.UserObjects[player.getName()],message)
-    
+            await messagePlayersBracelet(game,player)
+
+
+@bot.event
+async def messagePlayersBracelet(game,player):
+    message = "For this round, you'll be a " + player.getColor().name + " " + player.getType().name + ".\n"
+    message += "You currently have " + str(player.getPoints()) + " BP."
+    await bot.send_message(game.UserObjects[player.getName()],message)
+
+
+
+@bot.event
+async def messagePlayersAmbidex(game):
+    for player in game.PlayerArray:
+        doorLot = game.ColorLotMapping[player.getColor()]
+        doorLot.remove(player)
+        if(player.getSpecies() == Species.HUMAN):
+            message = ""
+            if(player.getType() == Type.SOLO):
+                message += "In this round, you'll face off against " + doorLot[0].getName() + " and " + doorLot[1].getName() + ".\n"
+                message += "Type +ally in this private message channel to choose ally, and +betray to choose betray.\n"
+            elif(player.getType() == Type.PAIR):
+                if(doorLot[0].getType() == Type.PAIR):
+                    message += "In this round, you're paired up with " + doorLot[0].getName() + ", and facing off against " + doorLot[1].getName() + ".\n"
+                    message += "The first vote to be sent by one of the " + player.getColor().name + " " + player.getType().name + " will be the one locked.\n"
+                    message += "Type +ally in this private message channel to choose Ally, and +betray to choose Betray.\n"
+                    
+            await bot.send_message(game.UserObjects[player.getName()],message)
+
+
+async def checkAmbidexGame():
+    await asyncio.sleep(90)
+    await bot.say("Now announcing the Ambidex Game results:")
+    game = await getGame(ctx)
+    if(game.AmbidexInProgress):
+        for colortype in game.ColorSets[ProposedColorCombo].keys():
+            if(colortype not in game.AmbidexGameRound):
+                game.AmbidexGameRound[colortype] = Vote.ALLY
+        for player in game.PlayerArray:
+            colorType = game.getPlayerColorType(player)
+            opponentColorType = game.getOpponent(player)
+            value = game.getAmbidexResult(colorType,opponentColorType)
+            player.addPoints(value)
+            await bot.say(player.getName() + " voted " + game.AmbidexGameRound[colortype].name + ".")
+        await bot.say("The current Bracelet Points are as follows:")
+        for player in game.PlayerArray:
+            await bot.say(player.getName() + ": " + str(player.getPoints()))
+        game.GameIterations += 1
+        game.randomizeBracelets()
+        for color in game.CurrentDoorSet:
+            colors.append(color.name)
+        game.ActivePolling = False
+        game.LockAmbidex = False
+        game.AmbidexInProgress = False
+        await bot.say("Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
+        await bot.say("The bracelets have been distributed; type +pair [PLAYERNAME], +pair [PLAYERTAG], or +door [COLOR] to propose a combination of players/doors to proceed.")
+
 
 
 @bot.event
