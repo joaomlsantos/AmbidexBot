@@ -127,7 +127,8 @@ class GameInstance:
         self.AmbidexGameRound.clear()
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
-
+        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter"]
+        
 
     def checkPlayerLimit(self):
         return(len(self.PlayerArray) < 9)
@@ -135,8 +136,8 @@ class GameInstance:
     def printPlayers(self):
         message = ""
         for player in self.PlayerArray:
-            message += player.name + ", "
-        return message[:-2]
+            message += player.name + "\n"
+        return message
 
     def startGame(self):
         if(not self.checkPlayerLimit()):

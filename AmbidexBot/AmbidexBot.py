@@ -64,13 +64,13 @@ async def _create(ctx):
             GameCreateSuccess = game.createGame(ctx.message.author.name,ctx.message.author)
             if(GameCreateSuccess):
                 userMap[ctx.message.author.name] = ctx.message.server.id
-                botMessage = ctx.message.author.name + " created a new game."
+                botMessage = ctx.message.author.name + " created a new game. Type +join to join the game."
                 await bot.say(botMessage)
             else:
                 botMessage = "A game has already been created, " + ctx.message.author.name + "!"
                 await bot.say(botMessage)
     else:
-        await bot.say(ctx.message.author.name + ", you're already in another game.")
+        await bot.say(ctx.message.author.name + ", you're already in a game.")
 
 
 
@@ -111,7 +111,7 @@ async def _join(ctx):
                 else:
                     await bot.say("Current game is full. Try again next time?")
     else:
-        await bot.say(ctx.message.author.name + ", you're already in another game.")
+        await bot.say(ctx.message.author.name + ", you're already in a game.")
         
 
 
@@ -121,8 +121,10 @@ async def _playerlist(ctx):
     game = await getGame(ctx)
     if(await checkGameCreated(game)):
         botMessage = "Current players:\n"
+        botMessage += "```\n"
         for player in game.PlayerArray:
             botMessage += player.name + "\n"
+        botMessage += "```"
         await bot.say(botMessage)
 
 
@@ -146,18 +148,19 @@ async def _quit(ctx):
 @bot.command(name='start',pass_context=True)
 async def _start(ctx):
     game = await getGame(ctx)
-    if(not await checkGameStarted(game)):
-        StartGameSuccess = game.startGame()
-        if(StartGameSuccess):
-            colors = []
-            await bot.say("Game is starting! The participants are as follows: \n " + "```"  + game.printPlayers() + "```")
-            await messagePlayersStart(game)
-            for color in game.CurrentDoorSet:
-                colors.append(color.name)
-            await bot.say("Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
-            await bot.say("The bracelets have been distributed; type +pair [PLAYERNAME] or +pair [PLAYERTAG] to propose a combination of players/doors to proceed.")
-        else:
-            await bot.say("There are currently " + str(len(game.PlayerArray)) + " players. You need 9 players to be able to start a game.")
+    if(await checkGameCreated(game)):
+        if(not await checkGameStarted(game)):
+            StartGameSuccess = game.startGame()
+            if(StartGameSuccess):
+                colors = []
+                await bot.say("Game is starting! The participants are as follows: \n " + "```\n"  + game.printPlayers() + "```")
+                await messagePlayersStart(game)
+                for color in game.CurrentDoorSet:
+                    colors.append(color.name)
+                await bot.say("Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
+                await bot.say("The bracelets have been distributed; type +pair [PLAYERNAME] or +pair [PLAYERTAG] to propose a combination of players/doors to proceed.")
+            else:
+                await bot.say("There are currently " + str(len(game.PlayerArray)) + " players. You need 9 players to be able to start a game.")
 
 
 
@@ -206,9 +209,11 @@ async def _pair(ctx):
                                 result = game.calculateCombinations(soloPlayer,pairPlayer)
                                 game.ActivePolling = True
                                 game.initPollingDict()
-                                message = "```" + callerPlayer.getName() + " wants to pair up with " + calledPlayer.getName() + ".\nThe combinations are as follows:\n"
+                                message = callerPlayer.getName() + " wants to pair up with " + calledPlayer.getName() + ".\nThe combinations are as follows:\n"
+                                message += "```\n"
                                 message += result
-                                message += "Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree.```"
+                                message += "```\n"
+                                message += "Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree."
                                 await bot.say(message)
                                 game.CurrentVotes["y"] += 1
                                 game.CurrentVotes[ctx.message.author.id] = "y"
@@ -216,13 +221,13 @@ async def _pair(ctx):
                                     game.setPlayerDoors()
                                     game.LockAmbidex = True
                                     await bot.say("The current combination has passed. Please advance to the designated doors.")
-                                    await bot.say("To reiterate:\n" + "```" + game.getTempCombinations() + "```")
+                                    await bot.say("To reiterate:\n" + "```\n" + game.getTempCombinations() + "```")
                             else:
-                                await bot.say("A " + callerPlayer.getType().name + " cannot pair with another " + calledPlayer.getType().name)
+                                await bot.say("A " + callerPlayer.getType().name + " cannot pair with another " + calledPlayer.getType().name + ".")
                         else:
-                            await bot.say("Shhhhhh. The dead can't speak.")
+                            await bot.say(calledPlayerName + " is not in this game.")
                     else:
-                        await bot.say (calledPlayerName + " is not in this game.")
+                        await bot.say ("Shhhhhh. The dead can't speak.")
                 else:
                     await bot.say (ctx.message.author.name + " is not in this game.")
             else:
@@ -245,7 +250,7 @@ async def _vote(ctx):
                                     game.setPlayerDoors()
                                     game.LockAmbidex = True
                                     await bot.say("The current combination has passed. Please advance to the designated doors.")
-                                    await bot.say("To reiterate:\n" + "```" + game.getTempCombinations() + "```")
+                                    await bot.say("To reiterate:\n" + "```\n" + game.getTempCombinations() + "```")
                                     await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
                             elif(ctx.message.content == "+vote n"):
                                 game.CurrentVotes["n"] += 1
@@ -287,7 +292,7 @@ async def _startabgame(ctx):
                     if(not game.AmbidexInProgress):
                         game.AmbidexInProgress = True
                         await messagePlayersAmbidex(game)
-                        await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next minute and a half, or your vote will be defaulted to Ally.")
+                        await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next 81 seconds, or your vote will be defaulted to Ally.")
                         bot.loop.create_task(checkAmbidexGame(ctx))
                     else:
                         await bot.say("An Ambidex Game is already in progress.")
@@ -332,7 +337,7 @@ async def _betray(ctx):
 async def _checkabvote(ctx):
     game = await getGame(ctx)
     if(game.AmbidexInProgress):
-        message = "```The following players haven't voted yet:\n"
+        message = "The following players haven't voted yet:\n```\n"
         for player in game.PlayerArray:
             colortype = game.getPlayerColorType(player)
             if(colortype not in game.AmbidexGameRound):
@@ -344,7 +349,7 @@ async def _checkabvote(ctx):
 async def _checkbracelets(ctx):
     game = await getGame(ctx)
     if(game.checkGameStarted()):
-        message = "```The current Bracelet Points are as follows:\n"
+        message = "The current Bracelet Points are as follows:\n```\n"
         for player in game.PlayerArray:
             message += player.getName() + ": " + str(player.getPoints()) + "\n"
         message += "```"
@@ -379,9 +384,10 @@ async def _opendoor9(ctx):
                         await bot.say(winners[0].getName() + " was the sole escapee, leaving everyone else trapped in the facility for the rest of their lives.")
                     elif(len(winners) < 9):
                         winningmessage = winners[0].getName()
-                        if(len(winners)>1):
+                        if(len(winners)>2):
                             for i in range(1,len(winners)-1):
                                 winningmessage += ", " + winners[i].getName()
+                        winningmessage += " and " + winners[-1].get.Name()
                         winningmessage += " were able to successfully escape."
                         await bot.say(winningmessage)
                     elif(len(winners) == 9):
@@ -391,8 +397,10 @@ async def _opendoor9(ctx):
                         if(userMap[k] == ctx.message.server.id):
                             del userMap[k]
                     doorNineFlag = False
+                else:
+                    await bot.say("You don't have enough points to open the door. Or you're dead.")
             else:
-                await bot.say("You don't have enough points to open the door. Or you're dead.")
+                await bot.say("The door 9 has already been opened.")
         else:
             await bot.say("AB Game is currently in progress; Please try again after the Ally/Betray round has ended.")
 
@@ -462,7 +470,7 @@ async def messagePlayersAmbidex(game):
 
 
 async def checkAmbidexGame(ctx):
-    await asyncio.sleep(90)
+    await asyncio.sleep(81)
     await bot.send_message(ctx.message.channel,"Now announcing the Ambidex Game results:")
     game = await getGame(ctx)
     if(game.AmbidexInProgress):
@@ -470,7 +478,7 @@ async def checkAmbidexGame(ctx):
         for colortype in game.ColorSets[game.ProposedColorCombo].keys():
             if(colortype not in game.AmbidexGameRound):
                 game.AmbidexGameRound[colortype] = Vote.ALLY
-        message = "```"
+        message = "```\n"
         for player in game.PlayerArray:
             playerColorType = game.getPlayerColorType(player)
             opponentColorType = game.getOpponent(player)
@@ -480,10 +488,10 @@ async def checkAmbidexGame(ctx):
         message += "```"
         await bot.send_message(ctx.message.channel,message)
         await bot.send_message(ctx.message.channel,"The current Bracelet Points are as follows:")
-        message = "```"
+        message = "```\n"
         for player in game.PlayerArray:
             message += player.getName() + ": " + str(player.getPoints()) + "\n"
-        message = "```"
+        message += "```"
         await bot.send_message(ctx.message.channel,message)
         game.GameIterations += 1
         game.randomizeBracelets()
@@ -497,7 +505,7 @@ async def checkAmbidexGame(ctx):
         game.AmbidexInProgress = False
         game.AmbidexGameRound.clear()
         await bot.send_message(ctx.message.channel,"Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
-        await bot.send_message(ctx.message.channel,"The bracelets have been distributed; type +pair [PLAYERNAME], +pair [PLAYERTAG], or +door [COLOR] to propose a combination of players/doors to proceed.")
+        await bot.send_message(ctx.message.channel,"The bracelets have been distributed; type +pair [PLAYERNAME] or +pair [PLAYERTAG] to propose a combination of players/doors to proceed.")
 
 
 
