@@ -11,6 +11,7 @@ from Species import Species
 from Type import Type
 from Vote import Vote
 from Status import Status
+import asyncio
 
 
 logger = logging.getLogger('discord')
@@ -24,6 +25,7 @@ bot = Bot(command_prefix='+')
 
 messageList = ['owo']
 gameInstances = {}
+userMap = {}
 
 @bot.event
 async def on_ready():
@@ -45,27 +47,29 @@ async def on_ready():
 @bot.command(name='ask',pass_context=True)
 async def _ask(ctx):
     
-    print(ctx.message.author)
     if("eat" in ctx.message.content):
         await bot.say("No.")
     else:
         random_line = random.choice(messageList)
         await bot.say(random_line)
-    print("Answered question with", random_line)
 
 
 
 @bot.command(name='create',pass_context=True)
 async def _create(ctx):
     game = await getGame(ctx)
-    if(not await checkGameStarted(game)):
-        GameCreateSuccess = game.createGame(ctx.message.author.name,ctx.message.author)
-        if(GameCreateSuccess):
-            botMessage = ctx.message.author.name + " created a new game."
-            await bot.say(botMessage)
-        else:
-            botMessage = "A game has already been created, " + ctx.message.author.name + "!"
-            await bot.say(botMessage)
+    if(ctx.message.author.name not in userMap):
+        if(not await checkGameStarted(game)):
+            GameCreateSuccess = game.createGame(ctx.message.author.name,ctx.message.author)
+            if(GameCreateSuccess):
+                userMap[ctx.message.author.name] = ctx.message.server.id
+                botMessage = ctx.message.author.name + " created a new game."
+                await bot.say(botMessage)
+            else:
+                botMessage = "A game has already been created, " + ctx.message.author.name + "!"
+                await bot.say(botMessage)
+    else:
+        await bot.say(ctx.message.author.name + ", you're already in another game.")
 
 
 
@@ -75,6 +79,9 @@ async def _end(ctx):
     if(await checkGameCreated(game)):
         if(game.checkPlayer(ctx.message.author.name)):
             game.endGame()
+            for k in userMap.keys:
+                if(userMap[k] == ctx.message.server.id):
+                    del userMap[k]
             botMessage = ctx.message.author.name + " ended the current game."
             await bot.say(botMessage)
         else:
@@ -86,20 +93,24 @@ async def _end(ctx):
 @bot.command(name='join',pass_context=True)
 async def _join(ctx):
     game = await getGame(ctx)
-    if(not await checkGameStarted(game)):
-        if(await checkGameCreated(game)):
-            if(game.checkPlayerLimit()):
-                JoinGameSuccess = game.joinGame(ctx.message.author.name,ctx.message.author)
-                if(JoinGameSuccess):
-                    botMessage = ctx.message.author.name + " joined the current game."
-                    await bot.say(botMessage)
-                    if(not game.checkPlayerLimit()):
-                        await bot.say("The game is ready to start! To start the game, use +start.")
+    if(ctx.message.author.name not in userMap):
+        if(not await checkGameStarted(game)):
+            if(await checkGameCreated(game)):
+                if(game.checkPlayerLimit()):
+                    JoinGameSuccess = game.joinGame(ctx.message.author.name,ctx.message.author)
+                    if(JoinGameSuccess):
+                        userMap[ctx.message.author.name] = ctx.message.server.id
+                        botMessage = ctx.message.author.name + " joined the current game."
+                        await bot.say(botMessage)
+                        if(not game.checkPlayerLimit()):
+                            await bot.say("The game is ready to start! To start the game, use +start.")
+                    else:
+                        botMessage = ctx.message.author.name + ", you're already in the game."
+                        await bot.say(botMessage)
                 else:
-                    botMessage = ctx.message.author.name + ", you're already in the game."
-                    await bot.say(botMessage)
-            else:
-                await bot.say("Current game is full. Try again next time?")
+                    await bot.say("Current game is full. Try again next time?")
+    else:
+        await bot.say(ctx.message.author.name + ", you're already in another game.")
         
 
 
@@ -122,6 +133,7 @@ async def _quit(ctx):
         if(await checkGameCreated(game)):
             QuitGameSuccess = game.quitGame(ctx.message.author.name)
             if(QuitGameSuccess):
+                del userMap[ctx.message.author.name]
                 botMessage = ctx.message.author.name + " quit the current game."
                 await bot.say(botMessage)
             else:
@@ -151,17 +163,18 @@ async def _start(ctx):
 @bot.command(name='addmachine',pass_context=True)
 async def _addmachine(ctx):
     game = await getGame(ctx)
-    if(not await checkGameStarted(game)):
-        if(await checkGameCreated(game)):
-            if(game.checkPlayerLimit()):
-                NewMachine = game.addMachine()
-                print(ctx.message.author.name + " added " + NewMachine.getName() + " as a player.")
-                botMessage = "Bot " + NewMachine.getName() + " joined the current game."
-                await bot.say(botMessage)
-                if(not game.checkPlayerLimit()):
-                    await bot.say("The game is ready to start! To start the game, use +start.")
-            else:
-                await bot.say("Current game is full. Try again next time?")
+    if(game.checkPlayer(ctx.message.author.name)):
+        if(not await checkGameStarted(game)):
+            if(await checkGameCreated(game)):
+                if(game.checkPlayerLimit()):
+                    NewMachine = game.addMachine()
+                    print(ctx.message.author.name + " added " + NewMachine.getName() + " as a player.")
+                    botMessage = "Bot " + NewMachine.getName() + " joined the current game."
+                    await bot.say(botMessage)
+                    if(not game.checkPlayerLimit()):
+                        await bot.say("The game is ready to start! To start the game, use +start.")
+                else:
+                    await bot.say("Current game is full. Try again next time?")
 
 
 
@@ -258,40 +271,48 @@ async def _startabgame(ctx):
     game = await getGame(ctx)
     if(game.checkGameStarted()):
         if(game.LockAmbidex):
-            game.AmbidexInProgress = True
-            await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next minute and a half, or your vote will be defaulted to Ally.")
-            bot.loop.create_task(checkAmbidexGame(ctx))
+            if(not game.AmbidexInProgress):
+                game.AmbidexInProgress = True
+                await messagePlayersAmbidex(game)
+                await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next minute and a half, or your vote will be defaulted to Ally.")
+                bot.loop.create_task(checkAmbidexGame(ctx))
+            else:
+                await bot.say("An Ambidex Game is already in progress.")
 
 
 @bot.command(name='ally',pass_context=True)
 async def _ally(ctx):
-    game = await getGame(ctx)
-    if(game.AmbidexInProgress):
-        if(ctx.message.channel.type is discord.ChannelType.private):
-            player = getPlayer(ctx.message.author.name)
-            if(player.getStatus() == Status.ALIVE):
-                colorType = player.getColor().name + " " + player.getType().name()
-                if(colorType not in game.AmbidexGameRound):
-                    game.AmbidexGameRound[colorType] = Vote.ALLY
-                    await bot.send_message(ctx.message.author,"Your vote has been confirmed. Please wait for the results.")
-                else:
-                    await bot.send_message(ctx.message.author,"Your team's vote has already been submitted.")
+    if(ctx.message.author.name in userMap):
+        serverId = userMap[ctx.message.author.name]
+        game = gameInstances[serverId]
+        if(game.AmbidexInProgress):
+            if(ctx.message.channel.type is discord.ChannelType.private):
+                player = game.getPlayer(ctx.message.author.name)
+                if(player.getStatus() == Status.ALIVE):
+                    colorType = player.getColor().name + " " + player.getType().name
+                    if(colorType not in game.AmbidexGameRound):
+                        game.AmbidexGameRound[colorType] = Vote.ALLY
+                        await bot.send_message(ctx.message.author,"Your vote has been confirmed. Please wait for the results.")
+                    else:
+                        await bot.send_message(ctx.message.author,"Your team's vote has already been submitted.")
 
 
 @bot.command(name='betray',pass_context=True)
 async def _betray(ctx):
-    game = await getGame(ctx)
-    if(game.AmbidexInProgress):
-        if(ctx.message.channel.type is discord.ChannelType.private):
-            if(game.checkPlayer(ctx.message.author.name)):
-                player = getPlayer(ctx.message.author.name)
-                if(player.getStatus() == Status.ALIVE):
-                    colorType = player.getColor().name + " " + player.getType().name()
-                    if(colorType not in game.AmbidexGameRound):
-                        game.AmbidexGameRound[colorType] = Vote.BETRAY
-                        await bot.send_message(ctx.message.author,"Your vote has been confirmed. Please wait for the results.")
-                    else:
-                        await bot.send_message(ctx.message.author,"Your team's vote has already been submitted.")
+    if(ctx.message.author.name in userMap):
+        serverId = userMap[ctx.message.author.name]
+        game = gameInstances[serverId]
+        if(game.AmbidexInProgress):
+            if(ctx.message.channel.type is discord.ChannelType.private):
+                if(game.checkPlayer(ctx.message.author.name)):
+                    player = game.getPlayer(ctx.message.author.name)
+                    if(player.getStatus() == Status.ALIVE):
+                        colorType = player.getColor().name + " " + player.getType().name
+                        if(colorType not in game.AmbidexGameRound):
+                            game.AmbidexGameRound[colorType] = Vote.BETRAY
+                            await bot.send_message(ctx.message.author,"Your vote has been confirmed. Please wait for the results.")
+                        else:
+                            await bot.send_message(ctx.message.author,"Your team's vote has already been submitted.")
 
 
 @bot.command(name='checkabvote',pass_context=True)
@@ -301,7 +322,7 @@ async def _checkabvote(ctx):
         await bot.say("The following players haven't voted yet:")
         for player in game.PlayerArray:
             colortype = game.getPlayerColorType(player)
-            if(colorType not in game.AmbidexGameRound):
+            if(colortype not in game.AmbidexGameRound):
                 await bot.say(player.getName())
     
 
@@ -309,8 +330,8 @@ async def _checkabvote(ctx):
 async def _opendoor9(ctx):
     game = await getGame(ctx)
     if(not game.AmbidexInProgress):
-        player = getPlayer(ctx.message.author.name)
-        if(player.getStatus == Status.ALIVE and player.getPoints() >= 9):
+        player = game.getPlayer(ctx.message.author.name)
+        if(player.getStatus() == Status.ALIVE and player.getPoints() >= 9):
             await bot.say(player.getName() + " opened Door 9.")
             winners = []
             losers = []
@@ -319,7 +340,7 @@ async def _opendoor9(ctx):
                 if (p.getStatus() == Status.DEAD):
                     dead.append(p)
                 elif (p.getStatus() == Status.ALIVE):
-                    if(p.getPoints < 9):
+                    if(p.getPoints() < 9):
                         losers.append(p)
                     else:
                         winners.append(p)
@@ -337,6 +358,10 @@ async def _opendoor9(ctx):
             elif(len(winners) == 9):
                 await bot.say("The spirit of collaboration had trumped over distrust, and everyone managed to get out of the facility safely. The trauma might remain, but so does the happiness of mutual survival.")
             game.endGame()
+        else:
+            await bot.say("You don't have enough points to open the door. Or you're dead.")
+    else:
+        await bot.say("AB Game is currently in progress; Please try again after the Ally/Betray round has ended.")
 
 @bot.event
 async def checkGameCreated(game):
@@ -382,7 +407,7 @@ async def messagePlayersBracelet(game,player):
 @bot.event
 async def messagePlayersAmbidex(game):
     for player in game.PlayerArray:
-        doorLot = game.ColorLotMapping[player.getColor()]
+        doorLot = game.ColorLotMapping[player.getDoor()].copy()
         doorLot.remove(player)
         if(player.getSpecies() == Species.HUMAN):
             message = ""
@@ -394,36 +419,46 @@ async def messagePlayersAmbidex(game):
                     message += "In this round, you're paired up with " + doorLot[0].getName() + ", and facing off against " + doorLot[1].getName() + ".\n"
                     message += "The first vote to be sent by one of the " + player.getColor().name + " " + player.getType().name + " will be the one locked.\n"
                     message += "Type +ally in this private message channel to choose Ally, and +betray to choose Betray.\n"
+                else:
+                    message += "In this round, you're paired up with " + doorLot[1].getName() + ", and facing off against " + doorLot[0].getName() + ".\n"
+                    message += "The first vote to be sent by one of the " + player.getColor().name + " " + player.getType().name + " will be the one locked.\n"
+                    message += "Type +ally in this private message channel to choose Ally, and +betray to choose Betray.\n"
+                        
                     
             await bot.send_message(game.UserObjects[player.getName()],message)
 
 
-async def checkAmbidexGame():
+async def checkAmbidexGame(ctx):
     await asyncio.sleep(90)
-    await bot.say("Now announcing the Ambidex Game results:")
+    await bot.send_message(ctx.message.channel,"Now announcing the Ambidex Game results:")
     game = await getGame(ctx)
     if(game.AmbidexInProgress):
-        for colortype in game.ColorSets[ProposedColorCombo].keys():
+        colors = []
+        for colortype in game.ColorSets[game.ProposedColorCombo].keys():
             if(colortype not in game.AmbidexGameRound):
                 game.AmbidexGameRound[colortype] = Vote.ALLY
         for player in game.PlayerArray:
-            colorType = game.getPlayerColorType(player)
+            playerColorType = game.getPlayerColorType(player)
             opponentColorType = game.getOpponent(player)
-            value = game.getAmbidexResult(colorType,opponentColorType)
+            value = game.getAmbidexResult(playerColorType,opponentColorType)
             player.addPoints(value)
-            await bot.say(player.getName() + " voted " + game.AmbidexGameRound[colortype].name + ".")
-        await bot.say("The current Bracelet Points are as follows:")
+            await bot.send_message(ctx.message.channel,player.getName() + " voted " + game.AmbidexGameRound[playerColorType].name + ".")
+        await bot.send_message(ctx.message.channel,"The current Bracelet Points are as follows:")
         for player in game.PlayerArray:
-            await bot.say(player.getName() + ": " + str(player.getPoints()))
+            await bot.send_message(ctx.message.channel,player.getName() + ": " + str(player.getPoints()))
         game.GameIterations += 1
         game.randomizeBracelets()
+        for p in game.PlayerArray:
+            if(p.getSpecies() == Species.HUMAN):
+                await messagePlayersBracelet(game,player)
         for color in game.CurrentDoorSet:
             colors.append(color.name)
         game.ActivePolling = False
         game.LockAmbidex = False
         game.AmbidexInProgress = False
-        await bot.say("Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
-        await bot.say("The bracelets have been distributed; type +pair [PLAYERNAME], +pair [PLAYERTAG], or +door [COLOR] to propose a combination of players/doors to proceed.")
+        game.AmbidexGameRound.clear()
+        await bot.send_message(ctx.message.channel,"Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
+        await bot.send_message(ctx.message.channel,"The bracelets have been distributed; type +pair [PLAYERNAME], +pair [PLAYERTAG], or +door [COLOR] to propose a combination of players/doors to proceed.")
 
 
 

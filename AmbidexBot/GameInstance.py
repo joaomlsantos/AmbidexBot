@@ -27,7 +27,7 @@ class GameInstance:
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
         self.AmbidexGameRound = {}
-        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake"]
+        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter"]
         self.cyanLot = []
         self.yellowLot = []
         self.magentaLot = []
@@ -109,7 +109,7 @@ class GameInstance:
                 return p
 
     def getPlayerColorType(self,player):
-        return player.getColor().name + " " + player.getType().name()
+        return player.getColor().name + " " + player.getType().name
 
     def clearGame(self):
         self.PlayerArray.clear()
@@ -127,7 +127,6 @@ class GameInstance:
         self.AmbidexGameRound.clear()
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
-        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Sigma"]
 
 
     def checkPlayerLimit(self):
@@ -190,8 +189,8 @@ class GameInstance:
     def getOpponent(self,player):
         colortype = self.getPlayerColorType(player)     #aka "RED SOLO" or etc
         playerdoor = player.getDoor()                   #aka Color.CYAN
-        for key in self.ColorSets[ProposedColorCombo].keys():
-            if(key != colortype and ColorSets[ProposedColorCombo][key] == playerdoor):
+        for key in self.ColorSets[self.ProposedColorCombo].keys():
+            if(key != colortype and self.ColorSets[self.ProposedColorCombo][key] == playerdoor):
                 return key
 
     def getTempCombinations(self):
@@ -206,25 +205,25 @@ class GameInstance:
             bracelet = player.getColor().name + " " + player.getType().name
             playerDoor = self.ColorSets[self.ProposedColorCombo][bracelet]
             if(playerDoor == Color.CYAN):
-                cyanLot.append(player)
+                self.cyanLot.append(player)
             if(playerDoor == Color.YELLOW):
-                yellowLot.append(player)
+                self.yellowLot.append(player)
             if(playerDoor == Color.MAGENTA):
-                magentaLot.append(player)
+                self.magentaLot.append(player)
             if(playerDoor == Color.RED):
-                redLot.append(player)
+                self.redLot.append(player)
             if(playerDoor == Color.GREEN):
-                greenLot.append(player)
+                self.greenLot.append(player)
             if(playerDoor == Color.BLUE):
-                blueLot.append(player)
-        if(len(cyanLot) != 0):
-            message += cyanLot[0].getName() + ", " + cyanLot[1].getName() + " and " + cyanLot[2].getName() + " will go through the Cyan Door.\n"
-            message += yellowLot[0].getName() + ", " + yellowLot[1].getName() + " and " + yellowLot[2].getName() + " will go through the Yellow Door.\n"
-            message += magentaLot[0].getName() + ", " + magentaLot[1].getName() + " and " + magentaLot[2].getName() + " will go through the Magenta Door.\n"
-        if(len(redLot) != 0):
-            message += redLot[0].getName() + ", " + redLot[1].getName() + " and " + redLot[2].getName() + " will go through the Red Door.\n"
-            message += greenLot[0].getName() + ", " + greenLot[1].getName() + " and " + greenLot[2].getName() + " will go through the Green Door.\n"
-            message += blueLot[0].getName() + ", " + blueLot[1].getName() + " and " + blueLot[2].getName() + " will go through the Blue Door.\n"
+                self.blueLot.append(player)
+        if(len(self.cyanLot) != 0):
+            message += self.cyanLot[0].getName() + ", " + self.cyanLot[1].getName() + " and " + self.cyanLot[2].getName() + " will go through the Cyan Door.\n"
+            message += self.yellowLot[0].getName() + ", " + self.yellowLot[1].getName() + " and " + self.yellowLot[2].getName() + " will go through the Yellow Door.\n"
+            message += self.magentaLot[0].getName() + ", " + self.magentaLot[1].getName() + " and " + self.magentaLot[2].getName() + " will go through the Magenta Door.\n"
+        if(len(self.redLot) != 0):
+            message += self.redLot[0].getName() + ", " + self.redLot[1].getName() + " and " + self.redLot[2].getName() + " will go through the Red Door.\n"
+            message += self.greenLot[0].getName() + ", " + self.greenLot[1].getName() + " and " + self.greenLot[2].getName() + " will go through the Green Door.\n"
+            message += self.blueLot[0].getName() + ", " + self.blueLot[1].getName() + " and " + self.blueLot[2].getName() + " will go through the Blue Door.\n"
         return message
 
 
