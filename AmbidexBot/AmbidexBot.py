@@ -26,6 +26,7 @@ bot = Bot(command_prefix='+')
 messageList = ['owo']
 gameInstances = {}
 userMap = {}
+doorNineFlag = False
 
 @bot.event
 async def on_ready():
@@ -79,7 +80,7 @@ async def _end(ctx):
     if(await checkGameCreated(game)):
         if(game.checkPlayer(ctx.message.author.name)):
             game.endGame()
-            for k in userMap.keys:
+            for k in userMap.copy().keys():
                 if(userMap[k] == ctx.message.server.id):
                     del userMap[k]
             botMessage = ctx.message.author.name + " ended the current game."
@@ -154,7 +155,7 @@ async def _start(ctx):
             for color in game.CurrentDoorSet:
                 colors.append(color.name)
             await bot.say("Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
-            await bot.say("The bracelets have been distributed; type +pair [PLAYERNAME], +pair [PLAYERTAG], or +door [COLOR] to propose a combination of players/doors to proceed.")
+            await bot.say("The bracelets have been distributed; type +pair [PLAYERNAME] or +pair [PLAYERTAG] to propose a combination of players/doors to proceed.")
         else:
             await bot.say("There are currently " + str(len(game.PlayerArray)) + " players. You need 9 players to be able to start a game.")
 
@@ -181,76 +182,85 @@ async def _addmachine(ctx):
 @bot.command(name='pair',pass_context=True)
 async def _pair(ctx):
     game = await getGame(ctx)
-    if(game.checkGameStarted()):
-        if(not game.ActivePolling):
-            if(len(ctx.message.mentions)>0):
-                calledPlayerName = ctx.message.mentions[0].name
-            elif(len(ctx.message.content)>6):
-                calledPlayerName = ctx.message.content[6:]
-            else:
-                calledPlayerName = ""
-            if(game.checkPlayer(calledPlayerName)):
-                callerPlayer = game.getPlayer(ctx.message.author.name)
-                calledPlayer = game.getPlayer(calledPlayerName)
-                if(callerPlayer.getType() != calledPlayer.getType()):
-                    if(callerPlayer.getType() == Type.SOLO):
-                        soloPlayer = callerPlayer;
-                        pairPlayer = calledPlayer;
+    if(game.checkPlayer(ctx.message.author.name)):
+        if(game.checkGameStarted()):
+            if(not game.ActivePolling):
+                if(game.checkPlayer(ctx.message.author.name)):
+                    if(game.getPlayer(ctx.message.author.name).getStatus() == Status.ALIVE):
+                        if(len(ctx.message.mentions)>0):
+                            calledPlayerName = ctx.message.mentions[0].name
+                        elif(len(ctx.message.content)>6):
+                            calledPlayerName = ctx.message.content[6:]
+                        else:
+                            calledPlayerName = ""
+                        if(game.checkPlayer(calledPlayerName)):
+                            callerPlayer = game.getPlayer(ctx.message.author.name)
+                            calledPlayer = game.getPlayer(calledPlayerName)
+                            if(callerPlayer.getType() != calledPlayer.getType()):
+                                if(callerPlayer.getType() == Type.SOLO):
+                                    soloPlayer = callerPlayer;
+                                    pairPlayer = calledPlayer;
+                                else:
+                                    soloPlayer = calledPlayer;
+                                    pairPlayer = callerPlayer;
+                                result = game.calculateCombinations(soloPlayer,pairPlayer)
+                                game.ActivePolling = True
+                                game.initPollingDict()
+                                await bot.say(callerPlayer.getName() + " wants to pair up with " + calledPlayer.getName() + ".\nThe combinations are as follows:\n")
+                                await bot.say(result)
+                                await bot.say("Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree.")
+                                game.CurrentVotes["y"] += 1
+                                game.CurrentVotes[ctx.message.author.id] = "y"
+                                if(game.CurrentVotes["y"] > game.getAlivePlayers()/2):
+                                    setPlayerDoors()
+                                    game.LockAmbidex = True
+                                    await bot.say("The current combination has passed. Please advance to the designated doors.")
+                                    await bot.say("To reiterate:\n" + game.getTempCombinations())
+                            else:
+                                await bot.say("A " + callerPlayer.getType().name + " cannot pair with another " + calledPlayer.getType().name)
+                        else:
+                            await bot.say("Shhhhhh. The dead can't speak.")
                     else:
-                        soloPlayer = calledPlayer;
-                        pairPlayer = callerPlayer;
-                    result = game.calculateCombinations(soloPlayer,pairPlayer)
-                    game.ActivePolling = True
-                    game.initPollingDict()
-                    await bot.say(callerPlayer.getName() + " wants to pair up with " + calledPlayer.getName() + ".\nThe combinations are as follows:\n")
-                    await bot.say(result)
-                    await bot.say("Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree.")
-                    game.CurrentVotes["y"] += 1
-                    game.CurrentVotes[ctx.message.author.id] = "y"
-                    if(game.CurrentVotes["y"] > game.getAlivePlayers()/2):
-                        setPlayerDoors()
-                        game.LockAmbidex = True
-                        await bot.say("The current combination has passed. Please advance to the designated doors.")
-                        await bot.say("To reiterate:\n" + game.getTempCombinations())
+                        await bot.say (calledPlayerName + " is not in this game.")
                 else:
-                    await bot.say("A " + callerPlayer.getType().name + " cannot pair with another " + calledPlayer.getType().name)
+                    await bot.say (ctx.message.author.name + " is not in this game.")
             else:
-                await bot.say (calledPlayerName + " is not in this game.")
-        else:
-            await bot.say ("A voting is currently in progress.")
+                await bot.say ("A voting is currently in progress.")
 
 
 @bot.command(name='vote',pass_context=True)
 async def _vote(ctx):
     game = await getGame(ctx)
     if(game.checkGameStarted()):
-        if(not game.LockAmbidex):
-            if(game.ActivePolling):
-                if(game.checkPlayer(ctx.message.author.name)):
-                    if(ctx.message.author.id not in game.CurrentVotes):
-                        if(ctx.message.content == "+vote y"):
-                            game.CurrentVotes["y"] += 1
-                            game.CurrentVotes[ctx.message.author.id] = "y"
-                            if(game.CurrentVotes["y"] > game.getAlivePlayers()/2):
-                                game.setPlayerDoors()
-                                game.LockAmbidex = True
-                                await bot.say("The current combination has passed. Please advance to the designated doors.")
-                                await bot.say("To reiterate:\n" + game.getTempCombinations())
-                                await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
-                        elif(ctx.message.content == "+vote n"):
-                            game.CurrentVotes["n"] += 1
-                            game.CurrentVotes[ctx.message.author.id] = "n"
-                            if(game.CurrentVotes["n"] >= game.getAlivePlayers()/2):
-                                game.ActivePolling = False
-                                game.clearDoorLots()
-                                await bot.say("The current combination failed, as the majority of the players voted for it not to pass. Please submit a new combination proposal.")
+        if(game.checkPlayer(ctx.message.author.name)):
+            if(not game.getPlayer(ctx.message.author.name).getStatus() == Status.DEAD):
+                if(not game.LockAmbidex):
+                    if(game.ActivePolling):
+                        if(ctx.message.author.id not in game.CurrentVotes):
+                            if(ctx.message.content == "+vote y"):
+                                game.CurrentVotes["y"] += 1
+                                game.CurrentVotes[ctx.message.author.id] = "y"
+                                if(game.CurrentVotes["y"] > game.getAlivePlayers()/2):
+                                    game.setPlayerDoors()
+                                    game.LockAmbidex = True
+                                    await bot.say("The current combination has passed. Please advance to the designated doors.")
+                                    await bot.say("To reiterate:\n" + game.getTempCombinations())
+                                    await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
+                            elif(ctx.message.content == "+vote n"):
+                                game.CurrentVotes["n"] += 1
+                                game.CurrentVotes[ctx.message.author.id] = "n"
+                                if(game.CurrentVotes["n"] >= game.getAlivePlayers()/2):
+                                    game.ActivePolling = False
+                                    game.clearDoorLots()
+                                    await bot.say("The current combination failed, as the majority of the players voted for it not to pass. Please submit a new combination proposal.")
+                        else:
+                            await bot.say(ctx.message.author.name + ", you already submitted your vote.")
                     else:
-                        await bot.say(ctx.message.author.name + ", you already submitted your vote.")
+                        await bot.say("A vote is not currently in progress.")
+                else:
+                    await bot.say("The doors have already been locked. Please try again on the next round.")
             else:
-                await bot.say("A vote is not currently in progress.")
-        else:
-            await bot.say("The doors have already been locked. Please try again on the next round.")
-
+                await bot.say("Shhhhhh. The dead can't speak.")
 
 @bot.command(name='checkvotes',pass_context=True)
 async def _checkVotes(ctx):
@@ -270,14 +280,16 @@ async def _checkVotes(ctx):
 async def _startabgame(ctx):
     game = await getGame(ctx)
     if(game.checkGameStarted()):
-        if(game.LockAmbidex):
-            if(not game.AmbidexInProgress):
-                game.AmbidexInProgress = True
-                await messagePlayersAmbidex(game)
-                await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next minute and a half, or your vote will be defaulted to Ally.")
-                bot.loop.create_task(checkAmbidexGame(ctx))
-            else:
-                await bot.say("An Ambidex Game is already in progress.")
+        if(game.checkPlayer(ctx.message.author.name)):
+            if(game.getPlayer(ctx.message.author.name).getStatus() == Status.ALIVE):
+                if(game.LockAmbidex):
+                    if(not game.AmbidexInProgress):
+                        game.AmbidexInProgress = True
+                        await messagePlayersAmbidex(game)
+                        await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next minute and a half, or your vote will be defaulted to Ally.")
+                        bot.loop.create_task(checkAmbidexGame(ctx))
+                    else:
+                        await bot.say("An Ambidex Game is already in progress.")
 
 
 @bot.command(name='ally',pass_context=True)
@@ -328,40 +340,48 @@ async def _checkabvote(ctx):
 
 @bot.command(name='opendoor9',pass_context=True)
 async def _opendoor9(ctx):
+    global doorNineFlag
     game = await getGame(ctx)
-    if(not game.AmbidexInProgress):
-        player = game.getPlayer(ctx.message.author.name)
-        if(player.getStatus() == Status.ALIVE and player.getPoints() >= 9):
-            await bot.say(player.getName() + " opened Door 9.")
-            winners = []
-            losers = []
-            dead = []
-            for p in game.PlayerArray:
-                if (p.getStatus() == Status.DEAD):
-                    dead.append(p)
-                elif (p.getStatus() == Status.ALIVE):
-                    if(p.getPoints() < 9):
-                        losers.append(p)
-                    else:
-                        winners.append(p)
-            await asyncio.sleep(9)
-            await bot.say("After 9 seconds passed, their fate was sealed.")
-            if(len(winners) == 1):
-                await bot.say(winners[0].getName() + "was the sole escapee, leaving everyone else trapped in the facility for the rest of their lives.")
-            elif(len(winners) < 9):
-                winningmessage = winners[0].getName()
-                if(len(winners)>2):
-                    for i in range(1,len(winners)-2):
-                        winningmessage += ", " + winners[i].getName()
-                winningmessage += " and " + winners[-1].getName() + "were able to successfully escape."
-                await bot.say(winningmessage)
-            elif(len(winners) == 9):
-                await bot.say("The spirit of collaboration had trumped over distrust, and everyone managed to get out of the facility safely. The trauma might remain, but so does the happiness of mutual survival.")
-            game.endGame()
+    if(game.checkGameStarted()):
+        if(not game.AmbidexInProgress):
+            if(not doorNineFlag):
+                doorNineFlag = True
+                player = game.getPlayer(ctx.message.author.name)
+                if(player.getStatus() == Status.ALIVE and player.getPoints() >= 9):
+                    await bot.say(player.getName() + " opened Door 9.")
+                    winners = []
+                    losers = []
+                    dead = []
+                    for p in game.PlayerArray:
+                        if (p.getStatus() == Status.DEAD):
+                            dead.append(p)
+                        elif (p.getStatus() == Status.ALIVE):
+                            if(p.getPoints() < 9):
+                                losers.append(p)
+                            else:
+                                winners.append(p)
+                    await asyncio.sleep(9)
+                    await bot.say("After 9 seconds passed, their fate was sealed.")
+                    if(len(winners) == 1):
+                        await bot.say(winners[0].getName() + " was the sole escapee, leaving everyone else trapped in the facility for the rest of their lives.")
+                    elif(len(winners) < 9):
+                        winningmessage = winners[0].getName()
+                        if(len(winners)>2):
+                            for i in range(1,len(winners)-1):
+                                winningmessage += ", " + winners[i].getName()
+                        winningmessage += " were able to successfully escape."
+                        await bot.say(winningmessage)
+                    elif(len(winners) == 9):
+                        await bot.say("The spirit of collaboration had trumped over distrust, and everyone managed to get out of the facility safely. The trauma might remain, but so does the happiness of mutual survival.")
+                    game.endGame()
+                    for k in userMap.copy().keys():
+                        if(userMap[k] == ctx.message.server.id):
+                            del userMap[k]
+                    doorNineFlag = False
+            else:
+                await bot.say("You don't have enough points to open the door. Or you're dead.")
         else:
-            await bot.say("You don't have enough points to open the door. Or you're dead.")
-    else:
-        await bot.say("AB Game is currently in progress; Please try again after the Ally/Betray round has ended.")
+            await bot.say("AB Game is currently in progress; Please try again after the Ally/Betray round has ended.")
 
 @bot.event
 async def checkGameCreated(game):
@@ -450,7 +470,7 @@ async def checkAmbidexGame(ctx):
         game.randomizeBracelets()
         for p in game.PlayerArray:
             if(p.getSpecies() == Species.HUMAN):
-                await messagePlayersBracelet(game,player)
+                await messagePlayersBracelet(game,p)
         for color in game.CurrentDoorSet:
             colors.append(color.name)
         game.ActivePolling = False
