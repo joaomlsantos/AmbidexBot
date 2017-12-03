@@ -150,7 +150,7 @@ async def _start(ctx):
         StartGameSuccess = game.startGame()
         if(StartGameSuccess):
             colors = []
-            await bot.say("Game is starting! The participants are as follows: " + game.printPlayers())
+            await bot.say("Game is starting! The participants are as follows: \n " + "```"  + game.printPlayers() + "```")
             await messagePlayersStart(game)
             for color in game.CurrentDoorSet:
                 colors.append(color.name)
@@ -206,16 +206,17 @@ async def _pair(ctx):
                                 result = game.calculateCombinations(soloPlayer,pairPlayer)
                                 game.ActivePolling = True
                                 game.initPollingDict()
-                                await bot.say(callerPlayer.getName() + " wants to pair up with " + calledPlayer.getName() + ".\nThe combinations are as follows:\n")
-                                await bot.say(result)
-                                await bot.say("Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree.")
+                                message = "```" + callerPlayer.getName() + " wants to pair up with " + calledPlayer.getName() + ".\nThe combinations are as follows:\n"
+                                message += result
+                                message += "Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree.```"
+                                await bot.say(message)
                                 game.CurrentVotes["y"] += 1
                                 game.CurrentVotes[ctx.message.author.id] = "y"
                                 if(game.CurrentVotes["y"] > game.getAlivePlayers()/2):
-                                    setPlayerDoors()
+                                    game.setPlayerDoors()
                                     game.LockAmbidex = True
                                     await bot.say("The current combination has passed. Please advance to the designated doors.")
-                                    await bot.say("To reiterate:\n" + game.getTempCombinations())
+                                    await bot.say("To reiterate:\n" + "```" + game.getTempCombinations() + "```")
                             else:
                                 await bot.say("A " + callerPlayer.getType().name + " cannot pair with another " + calledPlayer.getType().name)
                         else:
@@ -244,7 +245,7 @@ async def _vote(ctx):
                                     game.setPlayerDoors()
                                     game.LockAmbidex = True
                                     await bot.say("The current combination has passed. Please advance to the designated doors.")
-                                    await bot.say("To reiterate:\n" + game.getTempCombinations())
+                                    await bot.say("To reiterate:\n" + "```" + game.getTempCombinations() + "```")
                                     await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
                             elif(ctx.message.content == "+vote n"):
                                 game.CurrentVotes["n"] += 1
@@ -331,12 +332,24 @@ async def _betray(ctx):
 async def _checkabvote(ctx):
     game = await getGame(ctx)
     if(game.AmbidexInProgress):
-        await bot.say("The following players haven't voted yet:")
+        message = "```The following players haven't voted yet:\n"
         for player in game.PlayerArray:
             colortype = game.getPlayerColorType(player)
             if(colortype not in game.AmbidexGameRound):
-                await bot.say(player.getName())
+                message += player.getName() + "\n"
+        message += "```"
+        await bot.say(message)
     
+@bot.command(name='checkbracelets',pass_context=True)
+async def _checkbracelets(ctx):
+    game = await getGame(ctx)
+    if(game.checkGameStarted()):
+        message = "```The current Bracelet Points are as follows:\n"
+        for player in game.PlayerArray:
+            message += player.getName() + ": " + str(player.getPoints()) + "\n"
+        message += "```"
+        await bot.say(message)
+        
 
 @bot.command(name='opendoor9',pass_context=True)
 async def _opendoor9(ctx):
@@ -366,7 +379,7 @@ async def _opendoor9(ctx):
                         await bot.say(winners[0].getName() + " was the sole escapee, leaving everyone else trapped in the facility for the rest of their lives.")
                     elif(len(winners) < 9):
                         winningmessage = winners[0].getName()
-                        if(len(winners)>2):
+                        if(len(winners)>1):
                             for i in range(1,len(winners)-1):
                                 winningmessage += ", " + winners[i].getName()
                         winningmessage += " were able to successfully escape."
@@ -457,15 +470,21 @@ async def checkAmbidexGame(ctx):
         for colortype in game.ColorSets[game.ProposedColorCombo].keys():
             if(colortype not in game.AmbidexGameRound):
                 game.AmbidexGameRound[colortype] = Vote.ALLY
+        message = "```"
         for player in game.PlayerArray:
             playerColorType = game.getPlayerColorType(player)
             opponentColorType = game.getOpponent(player)
             value = game.getAmbidexResult(playerColorType,opponentColorType)
             player.addPoints(value)
-            await bot.send_message(ctx.message.channel,player.getName() + " voted " + game.AmbidexGameRound[playerColorType].name + ".")
+            message += player.getName() + " voted " + game.AmbidexGameRound[playerColorType].name + ".\n"
+        message += "```"
+        await bot.send_message(ctx.message.channel,message)
         await bot.send_message(ctx.message.channel,"The current Bracelet Points are as follows:")
+        message = "```"
         for player in game.PlayerArray:
-            await bot.send_message(ctx.message.channel,player.getName() + ": " + str(player.getPoints()))
+            message += player.getName() + ": " + str(player.getPoints()) + "\n"
+        message = "```"
+        await bot.send_message(ctx.message.channel,message)
         game.GameIterations += 1
         game.randomizeBracelets()
         for p in game.PlayerArray:
