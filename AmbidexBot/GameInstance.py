@@ -27,7 +27,7 @@ class GameInstance:
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
         self.AmbidexGameRound = {}
-        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter"]
+        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter","Funyarinpa","Hector Dec","Rick Green","Cass","Niklas Balk","Josharu Haegime","Daisy Peteller","Random Jamie Variant","Billie J. Gervaise","Masashiro Amane","Harry Peteller","Felix Dec","Samuel Dec","Eric Porter","Heinrich Porter","9th Man"]
         self.cyanLot = []
         self.yellowLot = []
         self.magentaLot = []
@@ -127,7 +127,7 @@ class GameInstance:
         self.AmbidexGameRound.clear()
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
-        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter"]
+        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter","Funyarinpa","Hector Dec","Rick Green","Cass","Niklas Balk","Josharu Haegime","Daisy Peteller","Random Jamie Variant","Billie J. Gervaise","Masashiro Amane","Harry Peteller","Felix Dec","Samuel Dec","Eric Porter","Heinrich Porter","9th Man"]
         
 
     def checkPlayerLimit(self):
