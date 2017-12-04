@@ -215,13 +215,6 @@ async def _pair(ctx):
                                 message += "```\n"
                                 message += "Each player must now vote if they want to go through with this door/bracelet combination.\n Type \"+vote y\" to agree, or \"+vote n\" to disagree."
                                 await bot.say(message)
-                                game.CurrentVotes["y"] += 1
-                                game.CurrentVotes[ctx.message.author.id] = "y"
-                                if(game.CurrentVotes["y"] > game.getAlivePlayers()/2):
-                                    game.setPlayerDoors()
-                                    game.LockAmbidex = True
-                                    await bot.say("The current combination has passed. Please advance to the designated doors.")
-                                    await bot.say("To reiterate:\n" + "```\n" + game.getTempCombinations() + "```")
                             else:
                                 await bot.say("A " + callerPlayer.getType().name + " cannot pair with another " + calledPlayer.getType().name + ".")
                         else:
@@ -387,7 +380,7 @@ async def _opendoor9(ctx):
                         if(len(winners)>2):
                             for i in range(1,len(winners)-1):
                                 winningmessage += ", " + winners[i].getName()
-                        winningmessage += " and " + winners[-1].get.Name()
+                        winningmessage += " and " + winners[-1].getName()
                         winningmessage += " were able to successfully escape."
                         await bot.say(winningmessage)
                     elif(len(winners) == 9):
@@ -475,16 +468,25 @@ async def checkAmbidexGame(ctx):
     game = await getGame(ctx)
     if(game.AmbidexInProgress):
         colors = []
+        colortypeArray = {"RED SOLO": [], "RED PAIR": [], "GREEN SOLO": [], "GREEN PAIR": [], "BLUE SOLO": [], "BLUE PAIR": [], "CYAN SOLO": [], "CYAN PAIR": [], "YELLOW SOLO": [], "YELLOW PAIR":[], "MAGENTA SOLO": [], "MAGENTA PAIR": []}
         for colortype in game.ColorSets[game.ProposedColorCombo].keys():
             if(colortype not in game.AmbidexGameRound):
                 game.AmbidexGameRound[colortype] = Vote.ALLY
-        message = "```\n"
         for player in game.PlayerArray:
             playerColorType = game.getPlayerColorType(player)
             opponentColorType = game.getOpponent(player)
             value = game.getAmbidexResult(playerColorType,opponentColorType)
             player.addPoints(value)
-            message += player.getName() + " voted " + game.AmbidexGameRound[playerColorType].name + ".\n"
+            colortypeArray[playerColorType].append(player)
+            #message += player.getName() + " voted " + game.AmbidexGameRound[playerColorType].name + ".\n"
+        #message += "```"
+        #await bot.send_message(ctx.message.channel,message)
+        message = "```\n"
+        for colortype in game.AmbidexGameRound.keys():
+            if(len(colortypeArray[colortype]) == 1):
+                message += colortypeArray[colortype][0].getName() + " voted " + game.AmbidexGameRound[colortype].name + ".\n"
+            elif(len(colortypeArray[colortype]) == 2):
+                message += colortypeArray[colortype][0].getName() + " and " + colortypeArray[colortype][1].getName() + " voted " + game.AmbidexGameRound[colortype].name + ".\n"
         message += "```"
         await bot.send_message(ctx.message.channel,message)
         await bot.send_message(ctx.message.channel,"The current Bracelet Points are as follows:")
