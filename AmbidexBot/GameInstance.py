@@ -27,6 +27,7 @@ class GameInstance:
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
         self.AmbidexGameRound = {}
+        self.MachinePersonalities = ["Cooperator","Undecided","Killer","Cockblocker","Asshole","Paranoid"]
         self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter","Funyarinpa","Hector Dec","Rick Green","Cass","Niklas Balk","Josharu Haegime","Daisy Peteller","Random Jamie Variant","Billie J. Gervaise","Masashiro Amane","Harry Peteller","Felix Dec","Samuel Dec","Eric Porter","Heinrich Porter","9th Man"]
         self.cyanLot = []
         self.yellowLot = []
@@ -87,8 +88,10 @@ class GameInstance:
         machineName = random.choice(self.MachineNames)
         self.MachineNames.remove(machineName)
         machinePlayer = Player(machineName,Species.MACHINE)
+        machinePlayer.setPersonality(random.choice(self.MachinePersonalities))
         self.PlayerArray.append(machinePlayer)
-        print("Bot ", machineName, "joined the current game.")
+        print("Bot", machineName, "joined the current game.")
+        print(machineName + "'s personality is " + machinePlayer.getPersonality())
         return machinePlayer
 
     def checkInProgress(self):
@@ -127,6 +130,8 @@ class GameInstance:
         self.AmbidexGameRound.clear()
         self.CurrentVotes["y"] = 0
         self.CurrentVotes["n"] = 0
+        self.ColorSets = {}
+        self.InitializeColorSets()
         self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter","Funyarinpa","Hector Dec","Rick Green","Cass","Niklas Balk","Josharu Haegime","Daisy Peteller","Random Jamie Variant","Billie J. Gervaise","Masashiro Amane","Harry Peteller","Felix Dec","Samuel Dec","Eric Porter","Heinrich Porter","9th Man"]
         
 
@@ -266,3 +271,49 @@ class GameInstance:
         self.redLot.clear()
         self.greenLot.clear()
         self.blueLot.clear()
+
+
+
+
+    def generateRoundVote(self,player):
+        personality = player.getPersonality()
+
+        if(personality == "Cooperator"):
+            return Vote.ALLY
+
+        elif(personality == "Undecided"):
+            if(random.random() > 0.5):
+                return Vote.ALLY
+            else:
+                return Vote.BETRAY
+
+        elif(personality == "Killer"):
+            opponentColor = self.getOpponent(player).split()[0]
+            opponentType = self.getOpponent(player).split()[1]
+            for opponent in self.PlayerArray:
+                if(opponent.getColor() == opponentColor and opponent.getType() == opponentType):
+                    if (opponent.getPoints() <= 2):
+                        return Vote.BETRAY
+            return Vote.ALLY
+
+        elif(personality == "Cockblocker"):
+            opponentColor = self.getOpponent(player).split()[0]
+            opponentType = self.getOpponent(player).split()[1]
+            for opponent in self.PlayerArray:
+                if(opponent.getColor() == opponentColor and opponent.getType() == opponentType):
+                    if (opponent.getPoints() >= 6):
+                        if(random.random() < 0.7):
+                            return Vote.BETRAY
+            return Vote.ALLY
+
+        elif(personality == "Asshole"):
+            return Vote.BETRAY
+
+        elif(personality == "Paranoid"):
+            if(self.GameIterations == 1 or player.getPoints() <= 2):
+                return Vote.BETRAY
+            else:
+                 if(random.random() > 0.6):
+                     return Vote.ALLY
+                 else:
+                     return Vote.BETRAY

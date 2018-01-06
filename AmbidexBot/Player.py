@@ -5,7 +5,7 @@ from Species import Species
 
 class Player:
 
-    def __init__(self, name,species):
+    def __init__(self,name,species):
         self.name = name
         self.status = Status.ALIVE
         self.points = 3
@@ -13,6 +13,7 @@ class Player:
         self.type = Type.UNDEFINED
         self.species = species
         self.door = Color.BLACK
+        self.personality = ""
 
     def addPoints(self, amount):
         self.points += amount
@@ -30,6 +31,9 @@ class Player:
 
     def setDoor(self, door):
         self.door = door
+
+    def setPersonality(self, personality):
+        self.personality = personality
 
     def getName(self):
         return self.name
@@ -51,3 +55,6 @@ class Player:
 
     def getDoor(self):
         return self.door
+
+    def getPersonality(self):
+        return self.personality
