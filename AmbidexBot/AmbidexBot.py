@@ -45,6 +45,12 @@ async def on_ready():
         gameInstances[server.id] = GameInstance(server.id)
 
 
+@bot.event
+async def on_server_join(server):
+    if(server.id not in gameInstances.keys):
+        gameInstances[server.id] = GameInstance(server.id)
+
+
 @bot.command(name='ask',pass_context=True)
 async def _ask(ctx):
     
