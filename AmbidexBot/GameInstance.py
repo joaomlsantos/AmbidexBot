@@ -1,3 +1,5 @@
+import os
+
 from Player import Player
 from Color import Color
 import random
@@ -28,7 +30,8 @@ class GameInstance:
         self.CurrentVotes["n"] = 0
         self.AmbidexGameRound = {}
         self.MachinePersonalities = ["Cooperator","Undecided","Killer","Cockblocker","Asshole","Paranoid"]
-        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter","Funyarinpa","Hector Dec","Rick Green","Cass","Niklas Balk","Josharu Haegime","Daisy Peteller","Random Jamie Variant","Billie J. Gervaise","Masashiro Amane","Harry Peteller","Felix Dec","Samuel Dec","Eric Porter","Heinrich Porter","9th Man"]
+        #self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter","Funyarinpa","Hector Dec","Rick Green","Cass","Niklas Balk","Josharu Haegime","Daisy Peteller","Random Jamie Variant","Billie J. Gervaise","Masashiro Amane","Harry Peteller","Felix Dec","Samuel Dec","Eric Porter","Heinrich Porter","9th Man"]
+        self.MachineNames = self.parseBotNamesFile("sadOttersNameList.txt")
         self.cyanLot = []
         self.yellowLot = []
         self.magentaLot = []
@@ -36,6 +39,29 @@ class GameInstance:
         self.greenLot = []
         self.blueLot = []
         self.ColorLotMapping = {Color.CYAN: self.cyanLot, Color.YELLOW: self.yellowLot, Color.MAGENTA: self.magentaLot, Color.RED: self.redLot, Color.GREEN: self.greenLot, Color.BLUE: self.blueLot}
+        self.playerObjectives = {}
+
+        
+    def clearGame(self):
+        self.PlayerArray.clear()
+        self.InProgress = False
+        self.GameStarted = False
+        self.ActivePolling = False
+        self.LockAmbidex = False
+        self.AmbidexInProgress = False
+        self.GameIterations = 0
+        self.CurrentColorSet.clear()
+        self.CurrentDoorSet.clear()
+        self.UserObjects.clear()
+        self.ProposedColorCombo = ""
+        self.CurrentVotes.clear()
+        self.AmbidexGameRound.clear()
+        self.CurrentVotes["y"] = 0
+        self.CurrentVotes["n"] = 0
+        self.ColorSets = {}
+        self.InitializeColorSets()
+        self.MachineNames = self.parseBotNamesFile("sadOttersNameList.txt")
+        self.playerObjectives = {}
         
 
     def InitializeColorSets(self):
@@ -54,7 +80,6 @@ class GameInstance:
             self.PlayerArray.append(Player(creatorName,Species.HUMAN))
             self.UserObjects[creatorName] = creatorObject
             self.InProgress = True
-            print("Player Array: ", self.PlayerArray)
             print(creatorName, "created a new game.")
             return True
         else:
@@ -94,49 +119,6 @@ class GameInstance:
         print(machineName + "'s personality is " + machinePlayer.getPersonality())
         return machinePlayer
 
-    def checkInProgress(self):
-        return (self.InProgress)
-
-    def checkGameStarted(self):
-        return (self.GameStarted)
-
-    def checkPlayer(self,player):
-        for p in self.PlayerArray:
-            if(p.getName() == player):
-                return True
-        return False
-
-    def getPlayer(self,player):
-        for p in self.PlayerArray:
-            if(p.getName() == player):
-                return p
-
-    def getPlayerColorType(self,player):
-        return player.getColor().name + " " + player.getType().name
-
-    def clearGame(self):
-        self.PlayerArray.clear()
-        self.InProgress = False
-        self.GameStarted = False
-        self.ActivePolling = False
-        self.LockAmbidex = False
-        self.AmbidexInProgress = False
-        self.GameIterations = 0
-        self.CurrentColorSet.clear()
-        self.CurrentDoorSet.clear()
-        self.UserObjects.clear()
-        self.ProposedColorCombo = ""
-        self.CurrentVotes.clear()
-        self.AmbidexGameRound.clear()
-        self.CurrentVotes["y"] = 0
-        self.CurrentVotes["n"] = 0
-        self.ColorSets = {}
-        self.InitializeColorSets()
-        self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter","Funyarinpa","Hector Dec","Rick Green","Cass","Niklas Balk","Josharu Haegime","Daisy Peteller","Random Jamie Variant","Billie J. Gervaise","Masashiro Amane","Harry Peteller","Felix Dec","Samuel Dec","Eric Porter","Heinrich Porter","9th Man"]
-        
-
-    def checkPlayerLimit(self):
-        return(len(self.PlayerArray) < 9)
 
     def printPlayers(self):
         message = ""
@@ -149,6 +131,7 @@ class GameInstance:
             self.GameStarted = True
             self.GameIterations += 1
             self.randomizeBracelets()
+            self.generatePlayerObjectives()
             return True
         else:
             return False
@@ -232,49 +215,6 @@ class GameInstance:
             message += self.blueLot[0].getName() + ", " + self.blueLot[1].getName() + " and " + self.blueLot[2].getName() + " will go through the Blue Door.\n"
         return message
 
-
-    def getAmbidexResult(self,playerColorType,opponentColorType):
-        playerVote = self.AmbidexGameRound[playerColorType]
-        opponentVote = self.AmbidexGameRound[opponentColorType]
-        if(playerVote == Vote.ALLY and opponentVote == Vote.ALLY):
-            return 2
-        elif(playerVote == Vote.ALLY and opponentVote == Vote.BETRAY):
-            return -2
-        elif(playerVote == Vote.BETRAY and opponentVote == Vote.ALLY):
-            return 3
-        elif(playerVote == Vote.BETRAY and opponentVote == Vote.BETRAY):
-            return 0
-        
-
-
-    def setPlayerDoors(self):
-        for player in self.PlayerArray:
-            bracelet = player.getColor().name + " " + player.getType().name
-            player.setDoor(self.ColorSets[self.ProposedColorCombo][bracelet])
-
-    def initPollingDict(self):
-        self.CurrentVotes.clear()
-        self.CurrentVotes["y"] = 0
-        self.CurrentVotes["n"] = 0
-
-    def getAlivePlayers(self):      #it only counts HUMAN players right now
-        result = 0
-        for player in self.PlayerArray:
-            if(player.getStatus() == Status.ALIVE and player.getSpecies() == Species.HUMAN):
-                result += 1
-        return result
-
-    def clearDoorLots(self):
-        self.cyanLot.clear()
-        self.yellowLot.clear()
-        self.magentaLot.clear()
-        self.redLot.clear()
-        self.greenLot.clear()
-        self.blueLot.clear()
-
-
-
-
     def generateRoundVote(self,player):
         personality = player.getPersonality()
 
@@ -317,3 +257,122 @@ class GameInstance:
                      return Vote.ALLY
                  else:
                      return Vote.BETRAY
+
+
+
+    def getAmbidexResult(self,playerColorType,opponentColorType):
+        playerVote = self.AmbidexGameRound[playerColorType]
+        opponentVote = self.AmbidexGameRound[opponentColorType]
+        if(playerVote == Vote.ALLY and opponentVote == Vote.ALLY):
+            return 2
+        elif(playerVote == Vote.ALLY and opponentVote == Vote.BETRAY):
+            return -2
+        elif(playerVote == Vote.BETRAY and opponentVote == Vote.ALLY):
+            return 3
+        elif(playerVote == Vote.BETRAY and opponentVote == Vote.BETRAY):
+            return 0
+        
+
+
+    def setPlayerDoors(self):
+        for player in self.PlayerArray:
+            bracelet = player.getColor().name + " " + player.getType().name
+            player.setDoor(self.ColorSets[self.ProposedColorCombo][bracelet])
+
+    def initPollingDict(self):
+        self.CurrentVotes.clear()
+        self.CurrentVotes["y"] = 0
+        self.CurrentVotes["n"] = 0
+
+    def getAlivePlayers(self):      #it only counts HUMAN players right now
+        result = 0
+        for player in self.PlayerArray:
+            if(player.getStatus() == Status.ALIVE and player.getSpecies() == Species.HUMAN):
+                result += 1
+        return result
+
+    def clearDoorLots(self):
+        self.cyanLot.clear()
+        self.yellowLot.clear()
+        self.magentaLot.clear()
+        self.redLot.clear()
+        self.greenLot.clear()
+        self.blueLot.clear()
+
+    def checkInProgress(self):
+        return (self.InProgress)
+
+    def checkGameStarted(self):
+        return (self.GameStarted)
+
+    def checkPlayer(self,player):
+        for p in self.PlayerArray:
+            if(p.getName() == player):
+                return True
+        return False
+
+    def getPlayer(self,player):
+        for p in self.PlayerArray:
+            if(p.getName() == player):
+                return p
+
+    def getPlayerColorType(self,player):
+        return player.getColor().name + " " + player.getType().name
+
+
+    def checkPlayerLimit(self):
+        return(len(self.PlayerArray) < 9)
+
+
+    def getPlayerByTypecolor(self,typecolorString):
+        resultArray = []
+
+        for player in self.PlayerArray:
+            if(self.getPlayerColorType(player) == typecolorString):
+                resultArray.append(player)
+
+        return resultArray
+
+
+    def parseBotNamesFile(self,filename):
+        file = open(os.path.join(os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__))), filename),'r')
+        names = file.read().splitlines()
+        file.close()
+        return names
+
+
+
+
+    def generateSingleObjective(self):
+
+        intKill = 15            #between 0 and 14
+        intTrapInside = 70           #between 15 and 69
+        intEscapeWith = 100     #between 70 and 99
+        randomNumber = random.randrange(100)
+
+        if(randomNumber < intKill):
+            return "KILL"
+
+        elif(randomNumber >= intKill and randomNumber < intTrapInside):
+            return "TRAP_INSIDE"
+
+        elif(randomNumber >= intTrapInside and randomNumber < intEscapeWith):
+            return "ESCAPE_WITH"
+
+
+    def generateObjectiveTarget(self,player):
+        
+        targets = list(self.PlayerArray)
+        targets.remove(player)
+        
+        randomNumber = random.randrange(len(targets))
+
+        return targets[randomNumber].getName()
+
+
+    def generatePlayerObjectives(self):
+        for player in self.PlayerArray:
+            if(player.getSpecies() == Species.HUMAN):
+                selectObjective = self.generateSingleObjective()
+                selectTarget = self.generateObjectiveTarget(player)
+                self.playerObjectives[player.getName()] = (selectObjective, selectTarget)

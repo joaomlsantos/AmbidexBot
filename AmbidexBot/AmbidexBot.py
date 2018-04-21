@@ -26,7 +26,6 @@ bot = Bot(command_prefix='+')
 messageList = ['owo']
 gameInstances = {}
 userMap = {}
-doorNineFlag = False
 
 @bot.event
 async def on_ready():
@@ -70,7 +69,8 @@ async def _create(ctx):
             GameCreateSuccess = game.createGame(ctx.message.author.name,ctx.message.author)
             if(GameCreateSuccess):
                 userMap[ctx.message.author.name] = ctx.message.server.id
-                botMessage = ctx.message.author.name + " created a new game. Type +join to join the game."
+                botMessage = ctx.message.author.name + " created a new game. Type +join to join the game. To add a computer player, type +addmachine.\n"
+                botMessage += ctx.message.author.name + " joined the current game."
                 await bot.say(botMessage)
             else:
                 botMessage = "A game has already been created, " + ctx.message.author.name + "!"
@@ -357,15 +357,15 @@ async def _checkbracelets(ctx):
 
 @bot.command(name='opendoor9',pass_context=True)
 async def _opendoor9(ctx):
-    global doorNineFlag
+    doorNineFlag = False;
     game = await getGame(ctx)
     if(game.checkGameStarted()):
         if(not game.AmbidexInProgress):
             if(not doorNineFlag):
-                doorNineFlag = True
                 player = game.getPlayer(ctx.message.author.name)
                 if(player.getStatus() == Status.ALIVE and player.getPoints() >= 9):
-                    await bot.say(player.getName() + " opened Door 9.")
+                    doorNineFlag = True
+                    await bot.say(player.getName() + " opened Door 9. The door will remain open for 9 seconds.")
                     winners = []
                     losers = []
                     dead = []
@@ -434,14 +434,35 @@ async def messagePlayersStart(game):
             message += "You need to reach 9 BP in order to open the number 9 door to escape.\n"
             await bot.send_message(game.UserObjects[player.getName()],message)
             await messagePlayersBracelet(game,player)
+            await messagePlayersObjective(game,player)
 
 
 @bot.event
 async def messagePlayersBracelet(game,player):
-    message = "For this round, you'll be a " + player.getColor().name + " " + player.getType().name + ".\n"
+    if(player.getType() == Type.PAIR):
+        playerArray = game.getPlayerByTypecolor(game.getPlayerColorType(player))
+        playerArray.remove(player)
+        message = "For this round, you'll be a " + player.getColor().name + " " + player.getType().name + " with " + playerArray[0].getName() + ".\n"
+    else:
+        message = "For this round, you'll be a " + player.getColor().name + " " + player.getType().name + ".\n"
     message += "You currently have " + str(player.getPoints()) + " BP."
     await bot.send_message(game.UserObjects[player.getName()],message)
 
+
+@bot.event
+async def messagePlayersObjective(game,player):
+    playerObjective = game.playerObjectives[player.getName()]
+    message = "Your objectives are: to ESCAPE the facility through the number 9 door, and to "
+    if(playerObjective[0] == "KILL"):
+        message += "KILL " + playerObjective[1] + " (that is, to make " + playerObjective[1] + " reach 0 BP or less)."
+    elif(playerObjective[0] == "TRAP_INSIDE"):
+        message += "TRAP " + playerObjective[1] + " INSIDE the facility (that is, to make sure " + playerObjective[1] + " has less than 9 BP when the number 9 door is open)."
+    elif(playerObjective[0] == "ESCAPE_WITH"):
+        message += "ESCAPE WITH " + playerObjective[1] + " (that is, both of you must escape the facility)."
+
+
+    await bot.send_message(game.UserObjects[player.getName()],message)
+        
 
 
 @bot.event
@@ -490,9 +511,6 @@ async def checkAmbidexGame(ctx):
             value = game.getAmbidexResult(playerColorType,opponentColorType)
             player.addPoints(value)
             colortypeArray[playerColorType].append(player)
-            #message += player.getName() + " voted " + game.AmbidexGameRound[playerColorType].name + ".\n"
-        #message += "```"
-        #await bot.send_message(ctx.message.channel,message)
         message = "```\n"
         for colortype in game.AmbidexGameRound.keys():
             if(len(colortypeArray[colortype]) == 1):
