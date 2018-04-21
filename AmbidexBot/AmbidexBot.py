@@ -12,6 +12,8 @@ from Type import Type
 from Vote import Vote
 from Status import Status
 import asyncio
+from tabulate import tabulate
+from operator import itemgetter
 
 
 logger = logging.getLogger('discord')
@@ -291,7 +293,7 @@ async def _startabgame(ctx):
                     if(not game.AmbidexInProgress):
                         game.AmbidexInProgress = True
                         await messagePlayersAmbidex(game)
-                        await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next 81 seconds, or your vote will be defaulted to Ally.")
+                        await bot.say("The Ambidex Game has now begun. Please submit your vote through DM within the next 45 seconds, or your vote will be defaulted to Ally.")
                         bot.loop.create_task(checkAmbidexGame(ctx))
                     else:
                         await bot.say("An Ambidex Game is already in progress.")
@@ -348,9 +350,12 @@ async def _checkabvote(ctx):
 async def _checkbracelets(ctx):
     game = await getGame(ctx)
     if(game.checkGameStarted()):
+        messageArray = []
         message = "The current Bracelet Points are as follows:\n```\n"
         for player in game.PlayerArray:
-            message += player.getName() + ": " + str(player.getPoints()) + "\n"
+            messageArray.append([player.getName(),player.getColor().name,player.getType().name,str(player.getPoints())])
+            messageArray = sorted(messageArray,key=itemgetter(1,2))
+        message += tabulate(messageArray, headers=['Name', 'Color','Type','BP'])
         message += "```"
         await bot.say(message)
         
@@ -425,13 +430,13 @@ async def checkGameStarted(game):
 async def messagePlayersStart(game):
     for player in game.PlayerArray:
         if(player.getSpecies() == Species.HUMAN):
-            message = "Welcome to the Ambidex Game!\n"
+            message = "```\nWelcome to the Ambidex Game!\n"
             message += "In the Ambidex Game, you will face off whoever you decide to go with into the Chromatic Doors.\n"
             message += "You have two options: A: Ally, or B: Betray.\n"
             message += "If you and your rival(s) both pick ally, both of you gain 2 Bracelet Points (BP).\n"
             message += "If you pick betray while your rival(s) pick ally, you gain 3 BP and they will lose 2 BP. The reverse is true too, if you pick ally and if they pick betray, you will lose 2 BP and they will gain 3 BP.\n"
             message += "If you and your rival(s) both pick betray, no change in BP occurs whatsoever.\n"
-            message += "You need to reach 9 BP in order to open the number 9 door to escape.\n"
+            message += "You need to reach 9 BP in order to open the number 9 door to escape.\n```"
             await bot.send_message(game.UserObjects[player.getName()],message)
             await messagePlayersBracelet(game,player)
             await messagePlayersObjective(game,player)
@@ -488,14 +493,14 @@ async def messagePlayersAmbidex(game):
                     
             await bot.send_message(game.UserObjects[player.getName()],message)
 
-
+@bot.event
 async def checkAmbidexGame(ctx):
-    await asyncio.sleep(81)
+    await asyncio.sleep(45)
     await bot.send_message(ctx.message.channel,"Now announcing the Ambidex Game results:")
     game = await getGame(ctx)
     if(game.AmbidexInProgress):
         colors = []
-        colortypeArray = {"RED SOLO": [], "RED PAIR": [], "GREEN SOLO": [], "GREEN PAIR": [], "BLUE SOLO": [], "BLUE PAIR": [], "CYAN SOLO": [], "CYAN PAIR": [], "YELLOW SOLO": [], "YELLOW PAIR":[], "MAGENTA SOLO": [], "MAGENTA PAIR": []}
+        playerIndex = {}
         for player in game.PlayerArray:
             if(player.getSpecies() == Species.MACHINE):
                 if(player.getStatus() == Status.ALIVE):
@@ -505,24 +510,51 @@ async def checkAmbidexGame(ctx):
         for colortype in game.ColorSets[game.ProposedColorCombo].keys():
             if(colortype not in game.AmbidexGameRound):
                 game.AmbidexGameRound[colortype] = Vote.ALLY
+        messageArray = await setResultsArray();
+        playerCounter = 1;
+
+        if(game.GameIterations%2 != 0):
+            lots = [list(game.cyanLot),list(game.magentaLot),list(game.yellowLot)]
+        else:
+            lots = [list(game.blueLot),list(game.greenLot),list(game.redLot)]
+
+        for lot in lots:
+            while(len(lot) > 1):
+                for player in lot:
+                    if(player.getType() == Type.PAIR):
+                        lot.remove(player)
+                        messageArray[0][playerCounter] = "PAIR"
+                        messageArray[1][playerCounter] = player.getName()
+                        playerIndex[player.getName()] = playerCounter
+                        playerCounter += 1
+            player = lot.pop()
+            messageArray[0][playerCounter] = "SOLO"
+            messageArray[1][playerCounter] = player.getName()
+            playerIndex[player.getName()] = playerCounter
+            playerCounter += 2
+
         for player in game.PlayerArray:
+            index = playerIndex[player.getName()]
+            messageArray[2][index] = player.getPoints()
+
             playerColorType = game.getPlayerColorType(player)
             opponentColorType = game.getOpponent(player)
+
+            messageArray[3][index] = game.AmbidexGameRound[playerColorType].name
+
             value = game.getAmbidexResult(playerColorType,opponentColorType)
             player.addPoints(value)
-            colortypeArray[playerColorType].append(player)
+
+            if(value >= 0):
+                messageArray[4][index] = "+" + str(value)
+            else:
+                messageArray[4][index] = str(value)
+
+            messageArray[5][index] = player.getPoints()
+
+
         message = "```\n"
-        for colortype in game.AmbidexGameRound.keys():
-            if(len(colortypeArray[colortype]) == 1):
-                message += colortypeArray[colortype][0].getName() + " voted " + game.AmbidexGameRound[colortype].name + ".\n"
-            elif(len(colortypeArray[colortype]) == 2):
-                message += colortypeArray[colortype][0].getName() + " and " + colortypeArray[colortype][1].getName() + " voted " + game.AmbidexGameRound[colortype].name + ".\n"
-        message += "```"
-        await bot.send_message(ctx.message.channel,message)
-        await bot.send_message(ctx.message.channel,"The current Bracelet Points are as follows:")
-        message = "```\n"
-        for player in game.PlayerArray:
-            message += player.getName() + ": " + str(player.getPoints()) + "\n"
+        message += tabulate(messageArray)
         message += "```"
         await bot.send_message(ctx.message.channel,message)
         game.GameIterations += 1
@@ -537,8 +569,28 @@ async def checkAmbidexGame(ctx):
         game.AmbidexInProgress = False
         game.AmbidexGameRound.clear()
         await bot.send_message(ctx.message.channel,"Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
-        await bot.send_message(ctx.message.channel,"The bracelets have been distributed; type +pair [PLAYERNAME] or +pair [PLAYERTAG] to propose a combination of players/doors to proceed.")
+        await bot.send_message(ctx.message.channel,"Your bracelet colors and types have been randomized; type +pair [PLAYERNAME] or +pair [PLAYERTAG] to propose a combination of players/doors to proceed. The new player-bracelet combinations are as following:\n")
+        messageArray = []
+        message = "```\n"
+        for player in game.PlayerArray:
+            messageArray.append([player.getName(),player.getColor().name,player.getType().name,str(player.getPoints())])
+            messageArray = sorted(messageArray,key=itemgetter(1,2))
+        message += tabulate(messageArray, headers=['Name','Color','Type','BP'])
+        message += "```"
+        await bot.send_message(ctx.message.channel,message)
 
+
+@bot.event
+async def setResultsArray():
+    messageArray = [[""]*12,[""]*12,[""]*12,[""]*12,[""]*12,[""]*12]
+    messageArray[2][0] = "BP"
+    messageArray[3][0] = "Vote"
+    messageArray[4][0] = "Change"
+    messageArray[5][0] = "Results"
+    for i in range(len(messageArray)):
+        messageArray[i][4] = "|"
+        messageArray[i][8] = "|"
+    return messageArray
 
 
 @bot.event

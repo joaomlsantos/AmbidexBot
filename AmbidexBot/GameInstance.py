@@ -7,6 +7,8 @@ from Type import Type
 from Species import Species
 from Status import Status
 from Vote import Vote
+from tabulate import tabulate
+from operator import itemgetter
 
 class GameInstance:
     
@@ -121,10 +123,11 @@ class GameInstance:
 
 
     def printPlayers(self):
-        message = ""
+        messageArray = []
         for player in self.PlayerArray:
-            message += player.name + "\n"
-        return message
+            messageArray.append([player.getName(),player.getColor().name,player.getType().name])
+            messageArray = sorted(messageArray,key=itemgetter(1,2))
+        return tabulate(messageArray, headers=['Name', 'Color','Type'])
 
     def startGame(self):
         if(not self.checkPlayerLimit()):
