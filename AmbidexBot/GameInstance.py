@@ -28,8 +28,9 @@ class GameInstance:
         self.UserObjects = {}
         self.ProposedColorCombo = ""
         self.CurrentVotes = {}
-        self.CurrentVotes["y"] = 0
-        self.CurrentVotes["n"] = 0
+        self.CurrentVotes["a"] = []
+        self.CurrentVotes["b"] = []
+        self.CurrentVotes["c"] = []
         self.AmbidexGameRound = {}
         self.MachinePersonalities = ["Cooperator","Undecided","Killer","Cockblocker","Asshole","Paranoid"]
         #self.MachineNames = ["Kye Dec","Sad Otter","Mac DeMarco","Pouty Maki","Mandy","Reinhardt","Kim Jong-Un","Sky The Magician","Brownie Cheesecake","Peter P. Porter","Funyarinpa","Hector Dec","Rick Green","Cass","Niklas Balk","Josharu Haegime","Daisy Peteller","Random Jamie Variant","Billie J. Gervaise","Masashiro Amane","Harry Peteller","Felix Dec","Samuel Dec","Eric Porter","Heinrich Porter","9th Man"]
@@ -41,6 +42,8 @@ class GameInstance:
         self.greenLot = []
         self.blueLot = []
         self.ColorLotMapping = {Color.CYAN: self.cyanLot, Color.YELLOW: self.yellowLot, Color.MAGENTA: self.magentaLot, Color.RED: self.redLot, Color.GREEN: self.greenLot, Color.BLUE: self.blueLot}
+        self.lookupCombi = {"RED SOLO": (0,1,2), "RED PAIR": (0,2,1), "GREEN SOLO": (1,2,0), "GREEN PAIR":(1,0,2), "BLUE SOLO": (2,0,1), "BLUE PAIR": (2,1,0),"CYAN SOLO": (0,1,2), "CYAN PAIR": (0,2,1), "MAGENTA SOLO": (1,2,0), "MAGENTA PAIR":(1,0,2), "YELLOW SOLO": (2,0,1), "YELLOW PAIR": (2,1,0)}
+        self.combinations = {"a": [[],[],[]], "b": [[],[],[]], "c": [[],[],[]]}
         self.playerObjectives = {}
 
         
@@ -63,6 +66,7 @@ class GameInstance:
         self.ColorSets = {}
         self.InitializeColorSets()
         self.MachineNames = self.parseBotNamesFile("sadOttersNameList.txt")
+        self.combinations = {"a": [[],[],[]], "b": [[],[],[]], "c": [[],[],[]]}
         self.playerObjectives = {}
         
 
@@ -162,6 +166,8 @@ class GameInstance:
                 finalSet.append(player)
         self.PlayerArray = finalSet
 
+
+
     def calculateCombinations(self,soloPlayer,pairPlayer):
         if((soloPlayer.getColor() == Color.RED and pairPlayer.getColor() == Color.RED) or (soloPlayer.getColor() == Color.GREEN and pairPlayer.getColor() == Color.GREEN) or (soloPlayer.getColor() == Color.BLUE and pairPlayer.getColor() == Color.BLUE)):
             colorCombo = "RedSolo|RedPair"
@@ -177,6 +183,11 @@ class GameInstance:
             colorCombo = "CyanSolo|MagentaPair"
         self.ProposedColorCombo = colorCombo
         return self.getTempCombinations()
+
+
+
+
+
 
     def getOpponent(self,player):
         colortype = self.getPlayerColorType(player)     #aka "RED SOLO" or etc
@@ -277,15 +288,25 @@ class GameInstance:
         
 
 
-    def setPlayerDoors(self):
+    def setPlayerDoors(self,combi):
+        self.setProposedColorCombo(combi)
         for player in self.PlayerArray:
             bracelet = player.getColor().name + " " + player.getType().name
-            player.setDoor(self.ColorSets[self.ProposedColorCombo][bracelet])
+            playerCombi = self.lookupCombi[bracelet]
+            if(combi == "a"):
+                playerCombi = playerCombi[0]
+            elif(combi == "b"):
+                playerCombi = playerCombi[1]
+            elif(combi == "c"):
+                playerCombi = playerCombi[2]
+            player.setDoor(self.getDoorFromCombi(playerCombi,player))
+
 
     def initPollingDict(self):
         self.CurrentVotes.clear()
-        self.CurrentVotes["y"] = 0
-        self.CurrentVotes["n"] = 0
+        self.CurrentVotes["a"] = []
+        self.CurrentVotes["b"] = []
+        self.CurrentVotes["c"] = []
 
     def getAlivePlayers(self):      #it only counts HUMAN players right now
         result = 0
@@ -379,3 +400,63 @@ class GameInstance:
                 selectObjective = self.generateSingleObjective()
                 selectTarget = self.generateObjectiveTarget(player)
                 self.playerObjectives[player.getName()] = (selectObjective, selectTarget)
+
+
+    def setPlayerCombi(self,player):
+        
+        colorType = self.getPlayerColorType(player)
+        playerCombi = self.lookupCombi[colorType]
+        playerLots = [list(self.combinations["a"]),list(self.combinations["b"]),list(self.combinations["c"])]
+        playerLots[0][playerCombi[0]].append(player)
+        playerLots[1][playerCombi[1]].append(player)
+        playerLots[2][playerCombi[2]].append(player)
+        self.combinations["a"] = playerLots[0]
+        self.combinations["b"] = playerLots[1]
+        self.combinations["c"] = playerLots[2]
+
+
+    def erasePlayerVote(self,player):
+        for key in self.combinations.keys():
+            if player in self.combinations[key]:
+                self.combinations[key].remove(player);
+
+    def getDoorFromCombi(self,combiNumber,player):
+        if(self.GameIterations%2 != 0):
+            if(combiNumber == 0):
+                self.cyanLot.append(player)
+                return Color.CYAN
+            elif(combiNumber == 1):
+                self.magentaLot.append(player)
+                return Color.MAGENTA
+            elif(combiNumber == 2):
+                self.yellowLot.append(player)
+                return Color.YELLOW
+        else:
+            if(combiNumber == 0):
+                self.redLot.append(player)
+                return Color.RED
+            elif(combiNumber == 1):
+                self.greenLot.append(player)
+                return Color.GREEN
+            elif(combiNumber == 2):
+                self.blueLot.append(player)
+                return Color.BLUE
+
+
+
+
+    def setProposedColorCombo(self,combiNumber):
+        if(self.GameIterations%2 != 0):
+            if(combiNumber == "a"):
+                self.ProposedColorCombo = "RedSolo|RedPair"
+            elif(combiNumber == "b"):
+                self.ProposedColorCombo = "RedSolo|BluePair"
+            elif(combiNumber == "c"):
+                self.ProposedColorCombo = "RedSolo|GreenPair"
+        else:
+            if(combiNumber == "a"):
+                self.ProposedColorCombo = "CyanSolo|CyanPair"
+            elif(combiNumber == "b"):
+                self.ProposedColorCombo = "CyanSolo|YellowPair"
+            elif(combiNumber == "c"):
+                self.ProposedColorCombo = "CyanSolo|MagentaPair"

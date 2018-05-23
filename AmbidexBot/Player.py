@@ -19,7 +19,6 @@ class Player:
         self.points += amount
         if(self.points <= 0):
             self.status = Status.DEAD
-        return amount
 
     def setColor(self, color):
         self.color = color

@@ -166,7 +166,7 @@ async def _start(ctx):
                 for color in game.CurrentDoorSet:
                     colors.append(color.name)
                 await bot.say("Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
-                await bot.say("The bracelets have been distributed; type +pair [PLAYERNAME] or +pair [PLAYERTAG] to propose a combination of players/doors to proceed.")
+                await bot.say("The bracelets have been distributed; type +startdoors in order to proceed to the chromatic doors. To check your bracelets, type +checkbracelets.")
             else:
                 await bot.say("There are currently " + str(len(game.PlayerArray)) + " players. You need 9 players to be able to start a game.")
 
@@ -190,6 +190,56 @@ async def _addmachine(ctx):
 
 
 
+@bot.command(name='startdoors',pass_context=True)
+async def _startdoors(ctx):
+    game = await getGame(ctx)
+    if(game.checkPlayer(ctx.message.author.name)):
+        if(game.checkGameStarted()):
+            if(not game.ActivePolling):
+                if(game.getPlayer(ctx.message.author.name).getStatus() == Status.ALIVE):    
+                    for player in game.PlayerArray:
+                        game.setPlayerCombi(player)
+
+                    game.ActivePolling = True
+                    game.initPollingDict()
+
+                    combiA = game.combinations["a"]
+                    combiB = game.combinations["b"]
+                    combiC = game.combinations["c"]
+                    
+                    combiMessage = "The chromatic doors have been opened. Possible combinations are as following: \n"
+                    if(game.GameIterations % 2 == 0):
+                        combiMessage += "```\nA: " + combiA[0][0].getName() + ", "  + combiA[0][1].getName() + " and " + combiA[0][2].getName() + " will go through the RED Door.\n"
+                        combiMessage += combiA[1][0].getName() + ", "  + combiA[1][1].getName() + " and " + combiA[1][2].getName() + " will go through the GREEN Door.\n"
+                        combiMessage += combiA[2][0].getName() + ", "  + combiA[2][1].getName() + " and " + combiA[2][2].getName() + " will go through the BLUE Door.\n```\n"
+
+                        combiMessage += "```\nB: " + combiB[0][0].getName() + ", "  + combiB[0][1].getName() + " and " + combiB[0][2].getName() + " will go through the RED Door.\n"
+                        combiMessage += combiB[1][0].getName() + ", "  + combiB[1][1].getName() + " and " + combiB[1][2].getName() + " will go through the GREEN Door.\n"
+                        combiMessage += combiB[2][0].getName() + ", "  + combiB[2][1].getName() + " and " + combiB[2][2].getName() + " will go through the BLUE Door.\n```\n"
+
+                        combiMessage += "```\nC: " + combiC[0][0].getName() + ", "  + combiC[0][1].getName() + " and " + combiC[0][2].getName() + " will go through the RED Door.\n"
+                        combiMessage += combiC[1][0].getName() + ", "  + combiC[1][1].getName() + " and " + combiC[1][2].getName() + " will go through the GREEN Door.\n"
+                        combiMessage += combiC[2][0].getName() + ", "  + combiC[2][1].getName() + " and " + combiC[2][2].getName() + " will go through the BLUE Door.\n```\n"
+
+                    else:
+                        combiMessage += "```\nCombination A: \n" + combiA[0][0].getName() + ", "  + combiA[0][1].getName() + " and " + combiA[0][2].getName() + " will go through the CYAN Door.\n"
+                        combiMessage += combiA[1][0].getName() + ", "  + combiA[1][1].getName() + " and " + combiA[1][2].getName() + " will go through the MAGENTA Door.\n"
+                        combiMessage += combiA[2][0].getName() + ", "  + combiA[2][1].getName() + " and " + combiA[2][2].getName() + " will go through the YELLOW Door.\n```"
+
+                        combiMessage += "```\nCombination B: \n" + combiB[0][0].getName() + ", "  + combiB[0][1].getName() + " and " + combiB[0][2].getName() + " will go through the CYAN Door.\n"
+                        combiMessage += combiB[1][0].getName() + ", "  + combiB[1][1].getName() + " and " + combiB[1][2].getName() + " will go through the MAGENTA Door.\n"
+                        combiMessage += combiB[2][0].getName() + ", "  + combiB[2][1].getName() + " and " + combiB[2][2].getName() + " will go through the YELLOW Door.\n```\n"
+
+                        combiMessage += "```\nCombination C: \n" + combiC[0][0].getName() + ", "  + combiC[0][1].getName() + " and " + combiC[0][2].getName() + " will go through the CYAN Door.\n"
+                        combiMessage += combiC[1][0].getName() + ", "  + combiC[1][1].getName() + " and " + combiC[1][2].getName() + " will go through the MAGENTA Door.\n"
+                        combiMessage += combiC[2][0].getName() + ", "  + combiC[2][1].getName() + " and " + combiC[2][2].getName() + " will go through the YELLOW Door.\n```\n"
+                    
+                    combiMessage += "Type +vote [LETTER] to pick the door combination you desire, e.g.: '+vote a' to choose combination A, '+vote b' to choose combination B, or +vote c to choose combination C. The game will proceed once a clear majority has been found."
+                    
+                    await bot.say(combiMessage)
+
+
+"""
 @bot.command(name='pair',pass_context=True)
 async def _pair(ctx):
     game = await getGame(ctx)
@@ -233,8 +283,53 @@ async def _pair(ctx):
                     await bot.say (ctx.message.author.name + " is not in this game.")
             else:
                 await bot.say ("A voting is currently in progress.")
+"""
+
+@bot.command(name='vote',pass_context=True)
+async def _vote(ctx):
+    game = await getGame(ctx)
+    if(game.checkGameStarted()):
+        if(game.checkPlayer(ctx.message.author.name)):
+            if(not game.getPlayer(ctx.message.author.name).getStatus() == Status.DEAD):
+                if(not game.LockAmbidex):
+                    if(game.ActivePolling):
+                        player = game.getPlayer(ctx.message.author.name)
+                        game.erasePlayerVote(player)
+                        if(ctx.message.content == "+vote a"):
+                            game.CurrentVotes["a"].append(player)
+                            if(len(game.CurrentVotes["a"]) > game.getAlivePlayers()/2):
+                                game.setPlayerDoors("a")
+                                game.LockAmbidex = True
+                                await bot.say("Combination A has passed. Please advance to the designated doors.")
+                                await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
+
+                        elif(ctx.message.content == "+vote b"):
+                            game.CurrentVotes["b"].append(player)
+                            if(len(game.CurrentVotes["b"]) > game.getAlivePlayers()/2):
+                                game.setPlayerDoors("b")
+                                game.LockAmbidex = True
+                                await bot.say("Combination B has passed. Please advance to the designated doors.")
+                                await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
+
+                        elif(ctx.message.content == "+vote c"):
+                            game.CurrentVotes["c"].append(player)
+                            if(len(game.CurrentVotes["c"]) > game.getAlivePlayers()/2):
+                                game.setPlayerDoors("c")
+                                game.LockAmbidex = True
+                                await bot.say("Combination C has passed. Please advance to the designated doors.")
+                                await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
 
 
+                    else:
+                        await bot.say("A vote is not currently in progress.")
+                else:
+                    await bot.say("The doors have already been locked. Please try again on the next round.")
+            else:
+                await bot.say("Shhhhhh. The dead can't speak.")
+
+
+
+"""
 @bot.command(name='vote',pass_context=True)
 async def _vote(ctx):
     game = await getGame(ctx)
@@ -268,6 +363,9 @@ async def _vote(ctx):
                     await bot.say("The doors have already been locked. Please try again on the next round.")
             else:
                 await bot.say("Shhhhhh. The dead can't speak.")
+"""
+
+
 
 @bot.command(name='checkvotes',pass_context=True)
 async def _checkVotes(ctx):
@@ -524,12 +622,12 @@ async def checkAmbidexGame(ctx):
                     if(player.getType() == Type.PAIR):
                         lot.remove(player)
                         messageArray[0][playerCounter] = "PAIR"
-                        messageArray[1][playerCounter] = player.getName()
+                        messageArray[1][playerCounter] = player.getName().replace(" ","\n")
                         playerIndex[player.getName()] = playerCounter
                         playerCounter += 1
             player = lot.pop()
             messageArray[0][playerCounter] = "SOLO"
-            messageArray[1][playerCounter] = player.getName()
+            messageArray[1][playerCounter] = player.getName().replace(" ","\n")
             playerIndex[player.getName()] = playerCounter
             playerCounter += 2
 
@@ -569,7 +667,7 @@ async def checkAmbidexGame(ctx):
         game.AmbidexInProgress = False
         game.AmbidexGameRound.clear()
         await bot.send_message(ctx.message.channel,"Round " + str(game.GameIterations) + " has started. For this round, you will be entering the " + colors[0] + ", " + colors[1] + " and " + colors[2] + " doors.")
-        await bot.send_message(ctx.message.channel,"Your bracelet colors and types have been randomized; type +pair [PLAYERNAME] or +pair [PLAYERTAG] to propose a combination of players/doors to proceed. The new player-bracelet combinations are as following:\n")
+        await bot.send_message(ctx.message.channel,"Your bracelet colors and types have been randomized; type +startdoors in order to proceed to the chromatic doors. To check your bracelets, type +checkbracelets. The new player-bracelet combinations are as following:\n")
         messageArray = []
         message = "```\n"
         for player in game.PlayerArray:
