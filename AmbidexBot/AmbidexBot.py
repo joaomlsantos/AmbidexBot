@@ -196,7 +196,8 @@ async def _startdoors(ctx):
     if(game.checkPlayer(ctx.message.author.name)):
         if(game.checkGameStarted()):
             if(not game.ActivePolling):
-                if(game.getPlayer(ctx.message.author.name).getStatus() == Status.ALIVE):    
+                if(game.getPlayer(ctx.message.author.name).getStatus() == Status.ALIVE):
+                    game.clearCombi()
                     for player in game.PlayerArray:
                         game.setPlayerCombi(player)
 
@@ -302,6 +303,8 @@ async def _vote(ctx):
                                 game.LockAmbidex = True
                                 await bot.say("Combination A has passed. Please advance to the designated doors.")
                                 await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
+                            elif((len(game.CurrentVotes["a"]) + len(game.CurrentVotes["b"]) + len(game.CurrentVotes["c"])) == game.getAlivePlayers()):
+                                await bot.say("A stalemate has been reached. One of the players needs to change their vote for the game to progress.\n To change your vote, type +vote [LETTER], e.g.: '+vote a' to choose combination A, '+vote b' to choose combination B, or +vote c to choose combination C.")
 
                         elif(ctx.message.content == "+vote b"):
                             game.CurrentVotes["b"].append(player)
@@ -310,6 +313,8 @@ async def _vote(ctx):
                                 game.LockAmbidex = True
                                 await bot.say("Combination B has passed. Please advance to the designated doors.")
                                 await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
+                            elif((len(game.CurrentVotes["a"]) + len(game.CurrentVotes["b"]) + len(game.CurrentVotes["c"])) == game.getAlivePlayers()):
+                                await bot.say("A stalemate has been reached. One of the players needs to change their vote for the game to progress.\n To change your vote, type +vote [LETTER], e.g.: '+vote a' to choose combination A, '+vote b' to choose combination B, or +vote c to choose combination C.")
 
                         elif(ctx.message.content == "+vote c"):
                             game.CurrentVotes["c"].append(player)
@@ -318,6 +323,8 @@ async def _vote(ctx):
                                 game.LockAmbidex = True
                                 await bot.say("Combination C has passed. Please advance to the designated doors.")
                                 await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
+                            elif((len(game.CurrentVotes["a"]) + len(game.CurrentVotes["b"]) + len(game.CurrentVotes["c"])) == game.getAlivePlayers()):
+                                await bot.say("A stalemate has been reached. One of the players needs to change their vote for the game to progress.\n To change your vote, type +vote [LETTER], e.g.: '+vote a' to choose combination A, '+vote b' to choose combination B, or +vote c to choose combination C.")
 
 
                     else:
@@ -364,20 +371,6 @@ async def _vote(ctx):
             else:
                 await bot.say("Shhhhhh. The dead can't speak.")
 """
-
-
-
-@bot.command(name='checkvotes',pass_context=True)
-async def _checkVotes(ctx):
-    game = await getGame(ctx)
-    if(game.checkGameStarted()):
-        if(game.ActivePolling):
-            message = "Current votes:\n"
-            message += "y: " + str(game.CurrentVotes["y"]) + "\n"
-            message += "n: " + str(game.CurrentVotes["n"])
-            await bot.say(message)
-        else:
-            await bot.say("A vote is not currently in progress.")
 
 
 

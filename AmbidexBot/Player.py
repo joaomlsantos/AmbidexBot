@@ -2,6 +2,7 @@ from Status import Status
 from Color import Color
 from Type import Type
 from Species import Species
+from PrivateState import PrivateState
 
 class Player:
 
@@ -14,6 +15,7 @@ class Player:
         self.species = species
         self.door = Color.BLACK
         self.personality = ""
+        self.privateState = PrivateState()
 
     def addPoints(self, amount):
         self.points += amount

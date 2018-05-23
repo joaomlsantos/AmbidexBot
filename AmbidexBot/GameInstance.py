@@ -407,6 +407,7 @@ class GameInstance:
         colorType = self.getPlayerColorType(player)
         playerCombi = self.lookupCombi[colorType]
         playerLots = [list(self.combinations["a"]),list(self.combinations["b"]),list(self.combinations["c"])]
+        print(playerLots)
         playerLots[0][playerCombi[0]].append(player)
         playerLots[1][playerCombi[1]].append(player)
         playerLots[2][playerCombi[2]].append(player)
@@ -460,3 +461,6 @@ class GameInstance:
                 self.ProposedColorCombo = "CyanSolo|YellowPair"
             elif(combiNumber == "c"):
                 self.ProposedColorCombo = "CyanSolo|MagentaPair"
+
+    def clearCombi(self):
+        self.combinations = {"a": [[],[],[]], "b": [[],[],[]], "c": [[],[],[]]}
