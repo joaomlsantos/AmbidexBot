@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>6b38d812-112a-4fb8-b3a5-95d02451010f</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>AmbidexBot.py</StartupFile>
+    <StartupFile>GameInstance.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>

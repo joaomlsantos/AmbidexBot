@@ -167,7 +167,6 @@ class GameInstance:
         self.PlayerArray = finalSet
 
 
-
     def calculateCombinations(self,soloPlayer,pairPlayer):
         if((soloPlayer.getColor() == Color.RED and pairPlayer.getColor() == Color.RED) or (soloPlayer.getColor() == Color.GREEN and pairPlayer.getColor() == Color.GREEN) or (soloPlayer.getColor() == Color.BLUE and pairPlayer.getColor() == Color.BLUE)):
             colorCombo = "RedSolo|RedPair"
@@ -289,6 +288,7 @@ class GameInstance:
 
 
     def setPlayerDoors(self,combi):
+        self.clearDoorLots()
         self.setProposedColorCombo(combi)
         for player in self.PlayerArray:
             bracelet = player.getColor().name + " " + player.getType().name
@@ -307,6 +307,22 @@ class GameInstance:
         self.CurrentVotes["a"] = []
         self.CurrentVotes["b"] = []
         self.CurrentVotes["c"] = []
+
+    def voteTally(self):
+        message = ""
+        for key in self.CurrentVotes.keys():
+            message += key.upper() + "(" + str(len(self.CurrentVotes[key])) + ") - "
+            for player in self.CurrentVotes[key]:
+                message += player.name + ", "
+            message += "\n"
+        return message;
+
+
+    def erasePlayerVote(self,player):
+        for key in self.CurrentVotes.keys():
+            if player in self.CurrentVotes[key]:
+                self.CurrentVotes[key].remove(player);
+
 
     def getAlivePlayers(self):      #it only counts HUMAN players right now
         result = 0
@@ -407,7 +423,6 @@ class GameInstance:
         colorType = self.getPlayerColorType(player)
         playerCombi = self.lookupCombi[colorType]
         playerLots = [list(self.combinations["a"]),list(self.combinations["b"]),list(self.combinations["c"])]
-        print(playerLots)
         playerLots[0][playerCombi[0]].append(player)
         playerLots[1][playerCombi[1]].append(player)
         playerLots[2][playerCombi[2]].append(player)
@@ -415,11 +430,6 @@ class GameInstance:
         self.combinations["b"] = playerLots[1]
         self.combinations["c"] = playerLots[2]
 
-
-    def erasePlayerVote(self,player):
-        for key in self.combinations.keys():
-            if player in self.combinations[key]:
-                self.combinations[key].remove(player);
 
     def getDoorFromCombi(self,combiNumber,player):
         if(self.GameIterations%2 != 0):

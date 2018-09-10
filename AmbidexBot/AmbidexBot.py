@@ -200,6 +200,7 @@ async def _startdoors(ctx):
                     game.clearCombi()
                     for player in game.PlayerArray:
                         game.setPlayerCombi(player)
+                    print(game.combinations)
 
                     game.ActivePolling = True
                     game.initPollingDict()
@@ -298,6 +299,7 @@ async def _vote(ctx):
                         game.erasePlayerVote(player)
                         if(ctx.message.content == "+vote a"):
                             game.CurrentVotes["a"].append(player)
+                            await bot.say(game.voteTally())
                             if(len(game.CurrentVotes["a"]) > game.getAlivePlayers()/2):
                                 game.setPlayerDoors("a")
                                 game.LockAmbidex = True
@@ -308,6 +310,7 @@ async def _vote(ctx):
 
                         elif(ctx.message.content == "+vote b"):
                             game.CurrentVotes["b"].append(player)
+                            await bot.say(game.voteTally())
                             if(len(game.CurrentVotes["b"]) > game.getAlivePlayers()/2):
                                 game.setPlayerDoors("b")
                                 game.LockAmbidex = True
@@ -318,6 +321,7 @@ async def _vote(ctx):
 
                         elif(ctx.message.content == "+vote c"):
                             game.CurrentVotes["c"].append(player)
+                            await bot.say(game.voteTally())
                             if(len(game.CurrentVotes["c"]) > game.getAlivePlayers()/2):
                                 game.setPlayerDoors("c")
                                 game.LockAmbidex = True
@@ -325,7 +329,6 @@ async def _vote(ctx):
                                 await bot.say("When you're done with the doors, type +startabgame to begin the Ambidex Game.")
                             elif((len(game.CurrentVotes["a"]) + len(game.CurrentVotes["b"]) + len(game.CurrentVotes["c"])) == game.getAlivePlayers()):
                                 await bot.say("A stalemate has been reached. One of the players needs to change their vote for the game to progress.\n To change your vote, type +vote [LETTER], e.g.: '+vote a' to choose combination A, '+vote b' to choose combination B, or +vote c to choose combination C.")
-
 
                     else:
                         await bot.say("A vote is not currently in progress.")
@@ -565,6 +568,8 @@ async def messagePlayersObjective(game,player):
 async def messagePlayersAmbidex(game):
     for player in game.PlayerArray:
         doorLot = game.ColorLotMapping[player.getDoor()].copy()
+        print(player.getDoor().name + ": ")
+        print(doorLot)
         doorLot.remove(player)
         if(player.getSpecies() == Species.HUMAN):
             message = ""
