@@ -331,6 +331,7 @@ class GameInstance:
                 result += 1
         return result
 
+
     def clearDoorLots(self):
         self.cyanLot.clear()
         self.yellowLot.clear()
@@ -345,15 +346,15 @@ class GameInstance:
     def checkGameStarted(self):
         return (self.GameStarted)
 
-    def checkPlayer(self,player):
+    def checkPlayer(self,playerName):
         for p in self.PlayerArray:
-            if(p.getName() == player):
+            if(p.getName() == playerName):
                 return True
         return False
 
-    def getPlayer(self,player):
+    def getPlayer(self,playerName):
         for p in self.PlayerArray:
-            if(p.getName() == player):
+            if(p.getName() == playerName):
                 return p
 
     def getPlayerColorType(self,player):
@@ -412,10 +413,36 @@ class GameInstance:
 
     def generatePlayerObjectives(self):
         for player in self.PlayerArray:
-            if(player.getSpecies() == Species.HUMAN):
-                selectObjective = self.generateSingleObjective()
-                selectTarget = self.generateObjectiveTarget(player)
-                self.playerObjectives[player.getName()] = (selectObjective, selectTarget)
+            selectObjective = self.generateSingleObjective()
+            selectTarget = self.generateObjectiveTarget(player)
+            self.playerObjectives[player.getName()] = (selectObjective, selectTarget)
+
+
+    def checkObjectiveMet(self,playerName):
+        objective = self.playerObjectives[playerName][0]
+        targetName = self.playerObjectives[playerName][1]       #target name, not target object
+        player = self.getPlayer(playerName)
+        target = self.getPlayer(targetName)
+        if(player.status == Status.ALIVE):
+            if((objective == "KILL" and target.status == Status.DEAD) or (objective == "TRAP_INSIDE" and target.points < 9) or (objective == "ESCAPE_WITH" and target.points >= 9 and target.status == Status.ALIVE)):
+                return True
+            else:
+                return False
+        else:
+            return False
+    
+
+    def getObjectiveMsg(self,playerName):
+        objective = self.playerObjectives[playerName][0]
+        targetName = self.playerObjectives[playerName][1]       #target name, not target object
+        message = "Objective: Escape and "
+        if(objective == "KILL"):
+            message += "KILL " + targetName + ".```\n"
+        elif(objective == "TRAP_INSIDE"):
+            message += "TRAP " + targetName + " INSIDE the facility.```\n"
+        elif(objective == "ESCAPE_WITH"):
+            message += "MAKE SURE " + targetName + " ESCAPES the facility.```\n"
+        return message
 
 
     def setPlayerCombi(self,player):
