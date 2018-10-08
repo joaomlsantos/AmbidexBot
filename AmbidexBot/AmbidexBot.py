@@ -14,6 +14,8 @@ from Status import Status
 import asyncio
 from tabulate import tabulate
 from operator import itemgetter
+import json
+import os.path
 
 
 logger = logging.getLogger('discord')
@@ -25,9 +27,9 @@ logger.addHandler(handler)
 
 bot = Bot(command_prefix='+')
 
-messageList = ['owo']
 gameInstances = {}
 userMap = {}
+highscoreMap = {}
 
 @bot.event
 async def on_ready():
@@ -44,6 +46,12 @@ async def on_ready():
     print('------')
     for server in bot.servers:
         gameInstances[server.id] = GameInstance(server.id)
+    if(os.path.isfile('highscores.txt')):
+        with open('highscores.txt') as highscores:
+            data = json.load(highscores)
+            print(data)
+            for element in data['players']:
+                highscoreMap[element['name']] = int(element['score'])
 
 
 @bot.event
@@ -52,16 +60,8 @@ async def on_server_join(server):
         gameInstances[server.id] = GameInstance(server.id)
 
 
-@bot.command(name='ask',pass_context=True)
-async def _ask(ctx):
+
     
-    if("eat" in ctx.message.content):
-        await bot.say("No.")
-    else:
-        random_line = random.choice(messageList)
-        await bot.say(random_line)
-
-
 
 @bot.command(name='create',pass_context=True)
 async def _create(ctx):
@@ -417,13 +417,49 @@ async def _opendoor9(ctx):
                         resultMsg += "```"
                         if(game.checkObjectiveMet(p.name) and p.name in winners):
                             resultMsg += p.name + " gained 5 points.\n"
+                            if(p.name in highscoreMap):
+                                highscoreMap[p.name] = highscoreMap[p.name] + 5
+                            
+                            else:
+                                highscoreMap[p.name] = 5
+                            
                         elif(game.checkObjectiveMet(p.name) and p.name not in winners):
                             resultMsg += p.name + " gained 2 points.\n"
+                            if(p.name in highscoreMap):
+                                highscoreMap[p.name] = highscoreMap[p.name] + 2
+                            
+                            else:
+                                highscoreMap[p.name] = 2
+                            
                         elif(not game.checkObjectiveMet(p.name) and p.name in winners):
                             resultMsg += p.name + " gained 3 points.\n"
+                            if(p.name in highscoreMap):
+                                highscoreMap[p.name] = highscoreMap[p.name] + 3
+                            
+                            else:
+                                highscoreMap[p.name] = 3
+                            
                         elif(not game.checkObjectiveMet(p.name) and p.name not in winners):
                             resultMsg += p.name + " gained 0 points.\n"
+                            if(p.name not in highscoreMap):
+                                highscoreMap[p.name] = 0
+                            
                         resultMsg += game.getObjectiveMsg(p.name)
+                        resultMsg += "Total score for " + p.name + ": " + str(highscoreMap[p.name]) + " points.```"
+                        
+
+                        data = {}
+                        data['players'] = []
+                        for key in highscoreMap.keys():
+                            data['players'].append({
+                                'name': key,
+                                'score' : highscoreMap[key]
+                            })
+                        data['players'] = sorted(data['players'], key=itemgetter('score'), reverse=True)
+
+                        with open('highscores.txt', 'w') as output:
+                            json.dump(data,output)
+                        
                     await bot.say(resultMsg)
                     
                     game.endGame()

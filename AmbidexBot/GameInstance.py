@@ -437,11 +437,11 @@ class GameInstance:
         targetName = self.playerObjectives[playerName][1]       #target name, not target object
         message = "Objective: Escape and "
         if(objective == "KILL"):
-            message += "KILL " + targetName + ".```\n"
+            message += "KILL " + targetName + ".\n"
         elif(objective == "TRAP_INSIDE"):
-            message += "TRAP " + targetName + " INSIDE the facility.```\n"
+            message += "TRAP " + targetName + " INSIDE the facility.\n"
         elif(objective == "ESCAPE_WITH"):
-            message += "MAKE SURE " + targetName + " ESCAPES the facility.```\n"
+            message += "MAKE SURE " + targetName + " ESCAPES the facility.\n"
         return message
 
 
